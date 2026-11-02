@@ -51,14 +51,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const isMobile = isPortrait || (isTouch && window.innerWidth <= 900);
 
     inputManager.touchControlsActive = isMobile;
+    document.body.classList.toggle('is-mobile-portrait', isMobile);
 
     const touchOverlay = document.getElementById('mobile-controls');
     if (touchOverlay) {
-      const showControls = isMobile && (game.state === 'READY' || game.state === 'PLAYING');
-      touchOverlay.style.display = showControls ? 'block' : 'none';
+      if (isMobile) {
+        touchOverlay.style.removeProperty('display'); // Let CSS handle visible display cleanly
+      } else {
+        touchOverlay.style.display = 'none'; // Hide on desktop landscape
+      }
     }
-
-    document.body.classList.toggle('is-mobile-portrait', isMobile);
   }
 
   window.addEventListener('resize', resizeCanvas);

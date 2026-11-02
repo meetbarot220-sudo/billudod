@@ -582,12 +582,12 @@ class GhostAttractorBot extends BaseBot {
     this.tetherAlpha = 0;
     this.targetGhost = null;
 
-    // Wall Attack Cycle State Machine
-    // Every 5-second cycle: CHARGE (5.0s visible wand warning) -> WALL_ACTIVE (strictly 3.0s barrier) -> COOLDOWN (2.0s) -> repeat
-    this.wallState = 'CHARGE'; // Begin charging for early battle excitement
-    this.wallChargeDuration = 5.0;   // 5.0s full visible warning & charging buildup
-    this.wallDuration = 3.0;         // Strictly 3.0s wall active duration
-    this.wallCooldownDuration = 2.0; // Rest before next 5s attack cycle
+    // Wall Attack Cycle State Machine:
+    // 1 SEC WARNING -> WALL -> 3 SEC -> WALL DISAPPEARS
+    this.wallState = 'CHARGE';       // Begin 1-second warning preview
+    this.wallChargeDuration = 1.0;   // STRICTLY 1.0s warning before wall placement!
+    this.wallDuration = 3.0;         // STRICTLY 3.0s wall active duration!
+    this.wallCooldownDuration = 3.5; // Rest before next wall cycle
     this.wallStateTimer = 0;
     this.chargeSoundTimer = 0;
 
@@ -672,71 +672,26 @@ class GhostAttractorBot extends BaseBot {
       }
     }
 
-    // 3. Wall Attack System: Every 5 seconds begins wall attack
+    // 3. Wall Attack System: 1 SEC WARNING -> WALL -> 3 SEC -> WALL DISAPPEARS
     switch (this.wallState) {
       case 'COOLDOWN':
         if (this.wallStateTimer >= this.wallCooldownDuration) {
-          // Begin 5-second CHARGING WARNING phase
+          // Begin exactly 1-second wall warning phase
           this.wallState = 'CHARGE';
           this.wallStateTimer = 0;
-          this.chargeSoundTimer = 0;
-          this.targetLocked = false;
+          this.lockTargetPosition(player, mw);
           if (window.soundManager) soundManager.playMagicCharge();
         }
         break;
 
       case 'CHARGE':
-        // Pulse charging audio cue every 1.25s
-        this.chargeSoundTimer += dt;
-        if (this.chargeSoundTimer >= 1.25 && this.wallStateTimer < this.wallChargeDuration - 0.5) {
-          this.chargeSoundTimer = 0;
-          if (window.soundManager) soundManager.playMagicCharge();
-        }
-
-        // Target ONE jump route ahead of the player:
-        // Analyzes player's current vertical tier and direction to block exactly ONE jump/route,
-        // leaving the alternate route (underneath, above, or around) completely open!
+        // Ensure position is firmly locked at the very start of the warning
         if (!this.targetLocked) {
-          const moveDir = (player.vx !== 0 ? Math.sign(player.vx) : player.facing);
-          let proposedX = player.x + (player.width / 2) + moveDir * 180;
-          this.targetX = ((proposedX % mw) + mw) % mw;
-
-          // Never spawn directly on player: ensure at least 130px distance
-          let distFromPlayer = Math.abs(this.targetX - (player.x + player.width / 2));
-          if (distFromPlayer < 120) {
-            this.targetX = (( (player.x + player.width / 2 + moveDir * 160) % mw ) + mw) % mw;
-          }
-
-          // Choose jump route height based on player tier:
-          // Localized height h = 145px (spans ONLY between two tiers, NOT whole screen)
-          if (player.y >= 610) {
-            // Player near ground (y = 780): Block jump route up to Lower tier (y = 635 .. 780)
-            this.targetY = 635;
-            this.targetH = 145;
-          } else if (player.y >= 460) {
-            // Player at Lower tier (y = 635): Block jump route up to Mid tier (y = 490 .. 635)
-            // Route below (down to ground) and above remain completely open!
-            this.targetY = 490;
-            this.targetH = 145;
-          } else if (player.y >= 320) {
-            // Player at Mid tier (y = 490): Block jump route up to Upper tier (y = 350 .. 490)
-            // Route below (lower tier/ground) remains completely open!
-            this.targetY = 350;
-            this.targetH = 140;
-          } else {
-            // Player at Upper tier (y = 350): Block jump route up to Summit (y = 210 .. 350)
-            this.targetY = 210;
-            this.targetH = 140;
-          }
-
-          // Lock the target position for the final 1.5 seconds of charging
-          if (this.wallStateTimer >= this.wallChargeDuration - 1.5) {
-            this.targetLocked = true;
-          }
+          this.lockTargetPosition(player, mw);
         }
 
         // Visible magical particles gathering into the wand crystal orb
-        if (window.particleSystem && Math.random() < 0.65) {
+        if (window.particleSystem && Math.random() < 0.75) {
           const wandX = this.x + (this.facing > 0 ? this.width + 12 : -12);
           const wandY = this.y + 10;
           particleSystem.emit({
@@ -749,7 +704,7 @@ class GhostAttractorBot extends BaseBot {
           });
         }
 
-        // When 5 seconds of charging finishes: MATERIALIZE 3-SECOND WALL
+        // When EXACTLY 1.0 SECOND of warning finishes: MATERIALIZE 3-SECOND REAL WALL
         if (this.wallStateTimer >= this.wallChargeDuration) {
           this.wallState = 'WALL_ACTIVE';
           this.wallStateTimer = 0;
@@ -761,7 +716,7 @@ class GhostAttractorBot extends BaseBot {
 
           // Particle flash along the localized wall bounds
           if (window.particleSystem) {
-            for (let py = this.targetY; py <= this.targetY + this.targetH; py += 30) {
+            for (let py = this.targetY; py <= this.targetY + this.targetH; py += 24) {
               particleSystem.emit({
                 x: this.targetX,
                 y: py,
@@ -776,10 +731,11 @@ class GhostAttractorBot extends BaseBot {
         break;
 
       case 'WALL_ACTIVE':
-        // Wall is active for STRICTLY 3.0 SECONDS
+        // Wall remains for STRICTLY 3.0 SECONDS
         if (this.wallStateTimer >= this.wallDuration) {
           this.wallState = 'COOLDOWN';
           this.wallStateTimer = 0;
+          this.targetLocked = false;
           if (game && game.magicalWall) {
             game.magicalWall = null;
           }
@@ -814,46 +770,92 @@ class GhostAttractorBot extends BaseBot {
     }
   }
 
-  // Draw Warning Outline at Target Jump Route during the 5s Charging Phase
+  // Lock target jump route geometry at the start of the 1-second warning
+  lockTargetPosition(player, mw) {
+    if (!player) return;
+    const moveDir = (player.vx !== 0 ? Math.sign(player.vx) : player.facing);
+    let proposedX = player.x + (player.width / 2) + moveDir * 170;
+    this.targetX = ((proposedX % mw) + mw) % mw;
+
+    // Never spawn directly on player: ensure at least 110px distance
+    let distFromPlayer = Math.abs(this.targetX - (player.x + player.width / 2));
+    if (distFromPlayer < 110) {
+      this.targetX = (((player.x + player.width / 2 + moveDir * 150) % mw) + mw) % mw;
+    }
+
+    // Localized height h = 145px blocks ONLY ONE jump route, leaving the other open!
+    if (player.y >= 610) {
+      this.targetY = 635;
+      this.targetH = 145;
+    } else if (player.y >= 460) {
+      this.targetY = 490;
+      this.targetH = 145;
+    } else if (player.y >= 320) {
+      this.targetY = 350;
+      this.targetH = 140;
+    } else {
+      this.targetY = 210;
+      this.targetH = 140;
+    }
+    this.targetLocked = true;
+  }
+
+  // Draw 1-Second Wall-Placement Preview at the EXACT Location of the Future Wall
   drawWarningColumn(ctx) {
     ctx.save();
-    const chargePct = Math.min(1.0, this.wallStateTimer / this.wallChargeDuration);
-    const pulse = Math.sin(this.animTime * (8 + chargePct * 12)) * 0.2 + 0.8;
-    const alpha = (0.28 + chargePct * 0.58) * pulse;
-
     const wallW = 32;
     const left = this.targetX - wallW / 2;
     const top = this.targetY;
-    const h = this.targetH; // Localized height of ONE jump route
+    const h = this.targetH; // Exact same localized height & position as the final wall
 
-    // 1. Translucent glowing purple warning block
-    ctx.fillStyle = `rgba(168, 85, 247, ${alpha * 0.35})`;
-    ctx.fillRect(left - 8, top, wallW + 16, h);
+    // Fast 1-second pulsating warning effect
+    const pulse = 0.75 + 0.25 * Math.sin(this.wallStateTimer * Math.PI * 8);
 
-    // 2. Denser core beam
-    ctx.fillStyle = `rgba(232, 121, 249, ${alpha * 0.7})`;
-    ctx.fillRect(left, top, wallW, h);
+    // 1. Transparent purple wall outline preview (exact 32 x h dimensions of final wall)
+    ctx.fillStyle = `rgba(168, 85, 247, ${0.30 * pulse})`;
+    if (ctx.roundRect) ctx.roundRect(left, top, wallW, h, 6);
+    else ctx.fillRect(left, top, wallW, h);
 
-    // 3. Dashed luminous warning borders
-    ctx.strokeStyle = `rgba(250, 232, 255, ${alpha})`;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([8, 6]);
-    ctx.strokeRect(left, top, wallW, h);
+    // 2. Glowing vertical placement indicator core
+    const grad = ctx.createLinearGradient(left, 0, left + wallW, 0);
+    grad.addColorStop(0, `rgba(192, 132, 252, ${0.25 * pulse})`);
+    grad.addColorStop(0.5, `rgba(250, 232, 255, ${0.60 * pulse})`);
+    grad.addColorStop(1, `rgba(192, 132, 252, ${0.25 * pulse})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(left + 4, top, wallW - 8, h);
+
+    // 3. Crisp luminous dashed placement outline
+    ctx.strokeStyle = `rgba(240, 171, 252, ${0.95 * pulse})`;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([8, 5]);
+    ctx.lineDashOffset = -this.animTime * 25;
+    if (ctx.roundRect) ctx.roundRect(left, top, wallW, h, 6);
+    else ctx.strokeRect(left, top, wallW, h);
     ctx.setLineDash([]);
 
-    // 4. Warning symbol & countdown timer
+    // 4. Warning header badge with 1-second countdown
     const remaining = Math.max(0, this.wallChargeDuration - this.wallStateTimer).toFixed(1);
-    ctx.fillStyle = '#f0abfc';
-    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`⚡ WALL: ${remaining}s`, this.targetX, top - 12);
+    ctx.fillText(`⚠️ WALL WARNING (${remaining}s)`, this.targetX, top - 24);
 
-    // 5. Open Route Guidance Indicators:
-    // Shows user that Route A is targeted, but the other route is completely open!
-    ctx.fillStyle = 'rgba(74, 222, 128, 0.9)';
+    // 5. Explicit "THE WALL WILL APPEAR HERE" placement indicator
+    ctx.fillStyle = '#f0abfc';
     ctx.font = 'bold 11px sans-serif';
-    ctx.fillText('▲ BLOCKED JUMP ▲', this.targetX, top + h / 2);
-    ctx.fillText('▼ OPEN ROUTE ▼', this.targetX, top + h + 18);
+    ctx.fillText('THE WALL WILL APPEAR HERE', this.targetX, top - 10);
+
+    // 6. Hazard markers inside placement preview
+    ctx.fillStyle = `rgba(245, 208, 254, ${0.9 * pulse})`;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('▼', this.targetX, top + 22);
+    ctx.fillText('⚠️', this.targetX, top + h / 2);
+    ctx.fillText('▲', this.targetX, top + h - 14);
+
+    // 7. Alternate Route Label (Visible escape route)
+    ctx.fillStyle = 'rgba(74, 222, 128, 0.95)';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('▲ ALTERNATE ROUTE OPEN ▲', this.targetX, top + h + 18);
 
     ctx.restore();
   }

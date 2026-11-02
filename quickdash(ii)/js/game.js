@@ -134,7 +134,11 @@ class GameController {
       const isPortrait = window.innerHeight > window.innerWidth;
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       const isMobile = isPortrait || (isTouch && window.innerWidth <= 900);
-      this.touchControls.style.display = isMobile ? 'block' : 'none';
+      if (isMobile) {
+        this.touchControls.style.removeProperty('display');
+      } else {
+        this.touchControls.style.display = 'none';
+      }
     }
 
     if (window.soundManager) {
