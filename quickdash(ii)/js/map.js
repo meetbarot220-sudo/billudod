@@ -11,7 +11,7 @@
  */
 class GameMap {
   constructor() {
-    this.width = 1700; // 21.4% larger than previous (15-25% target)
+    this.width = 1700; // Original 1,700px old garden map width
     this.height = 850;
 
     this.platforms = [];
@@ -31,27 +31,19 @@ class GameMap {
   }
 
   buildCompactMap() {
-    // 1. Vertical boundaries ONLY (Ground & Ceiling) - NO HARD SIDE WALLS (Looping World)
+    // 1. Sky Ceiling ONLY (y = 0..40) - NO BOTTOM BRICK GROUND PLATFORM
     this.platforms.push(
-      { x: 0, y: 780, w: this.width, h: 70, type: 'solid', style: 'ground' },
       { x: 0, y: 0, w: this.width, h: 40, type: 'solid', style: 'ceiling' }
     );
 
-    // 2. Ground level stone steps / mounds (stepping ramp stones matching reference)
-    this.platforms.push(
-      { x: 100, y: 730, w: 160, h: 50, type: 'oneway', style: 'earth_block' },
-      { x: 760, y: 730, w: 180, h: 50, type: 'oneway', style: 'earth_block' },
-      { x: 1440, y: 730, w: 160, h: 50, type: 'oneway', style: 'earth_block' }
-    );
-
-    // 3. Lower Tier (y = 635): Flanking terraces & wide central lawn stage
+    // 2. Lower Floating Tier (y = 635): Flanking terraces & wide central lawn stage
     this.platforms.push(
       { x: 60, y: 635, w: 340, h: 26, type: 'oneway', style: 'wood_bridge' },        // West garden terrace
       { x: 580, y: 635, w: 540, h: 28, type: 'oneway', style: 'grass_mound' },       // Central lawn stage (Primary hub)
       { x: 1300, y: 635, w: 340, h: 26, type: 'oneway', style: 'wood_bridge' }       // East garden terrace
     );
 
-    // 4. Mid Tier (y = 490): Staggered stepping bridges & twin central stone plinths
+    // 3. Mid Floating Tier (y = 490): Staggered stepping bridges & twin central stone plinths
     this.platforms.push(
       { x: 220, y: 490, w: 280, h: 24, type: 'oneway', style: 'wood_bridge' },       // West mid stepping bridge
       { x: 640, y: 490, w: 160, h: 24, type: 'oneway', style: 'stone_ledge' },       // Center-West stone plinth
@@ -59,21 +51,21 @@ class GameMap {
       { x: 1200, y: 490, w: 280, h: 24, type: 'oneway', style: 'wood_bridge' }       // East mid stepping bridge
     );
 
-    // 5. Upper Tier (y = 350): High arbor walkways & grand central canopy bridge
+    // 4. Upper Floating Tier (y = 350): High arbor walkways & grand central canopy bridge
     this.platforms.push(
       { x: 80, y: 350, w: 340, h: 24, type: 'oneway', style: 'wood_bridge' },        // West high arbor
       { x: 540, y: 350, w: 620, h: 26, type: 'oneway', style: 'grass_mound' },       // Grand central high walkway
       { x: 1280, y: 350, w: 340, h: 24, type: 'oneway', style: 'wood_bridge' }       // East high arbor
     );
 
-    // 6. Summit Tier (y = 210): Treetop lookout perches & central Gazebo crown
+    // 5. Summit Floating Tier (y = 210): Treetop lookout perches & central Gazebo crown
     this.platforms.push(
       { x: 260, y: 210, w: 220, h: 24, type: 'oneway', style: 'treetop_perch' },     // West summit lookout
       { x: 720, y: 200, w: 260, h: 24, type: 'oneway', style: 'stone_ledge' },        // Center Gazebo stone crown
       { x: 1220, y: 210, w: 220, h: 24, type: 'oneway', style: 'treetop_perch' }     // East summit lookout
     );
 
-    // 7. Loop Boundary Bridges (Connecting left and right edges for seamless wraparound running)
+    // 6. Loop Boundary Bridges (Connecting left and right edges for seamless wraparound running)
     this.platforms.push(
       { x: 0, y: 490, w: 120, h: 22, type: 'oneway', style: 'wood_bridge' },
       { x: 1580, y: 490, w: 120, h: 22, type: 'oneway', style: 'wood_bridge' },
@@ -81,7 +73,7 @@ class GameMap {
       { x: 1580, y: 350, w: 120, h: 22, type: 'oneway', style: 'wood_bridge' }
     );
 
-    // 8. AI Waypoints across the reference arena
+    // 7. AI Waypoints strictly on the floating platforms
     this.waypoints = [
       { x: 230, y: 615 },
       { x: 850, y: 615 },
@@ -96,164 +88,117 @@ class GameMap {
       { x: 850, y: 180 }
     ];
 
-    // 9. Valid reachable shield drop locations across tiers
+    // 8. Reachable shield drop locations on floating platforms
     this.shieldSpawnPoints = [
-      { x: 850, y: 605 },   // Main lawn stage center
-      { x: 230, y: 605 },   // West lower terrace
-      { x: 1470, y: 605 },  // East lower terrace
-      { x: 360, y: 460 },   // West mid stepping bridge
-      { x: 1340, y: 460 },  // East mid stepping bridge
-      { x: 720, y: 460 },   // Center-west stone plinth
-      { x: 980, y: 460 },   // Center-east stone plinth
-      { x: 250, y: 320 },   // West high arbor
-      { x: 850, y: 320 },   // Grand central high walkway
-      { x: 1450, y: 320 },  // East high arbor
-      { x: 850, y: 170 }    // Summit Gazebo apex
+      { x: 850, y: 550 },   // Main lawn stage center
+      { x: 230, y: 550 },   // West lower terrace
+      { x: 1470, y: 550 },  // East lower terrace
+      { x: 360, y: 410 },   // West mid stepping bridge
+      { x: 1340, y: 410 },  // East mid stepping bridge
+      { x: 720, y: 410 },   // Center-west stone plinth
+      { x: 980, y: 410 },   // Center-east stone plinth
+      { x: 250, y: 270 },   // West high arbor
+      { x: 850, y: 270 },   // Grand central high walkway
+      { x: 1450, y: 270 },  // East high arbor
+      { x: 850, y: 130 }    // Summit Gazebo apex
     ];
 
-    // Spawn points matching reference starting positions
+    // Spawn points sized for normal characters (height = 32) on floating platforms
     this.spawnPoints = {
-      player: { x: 850, y: 570 },             // Centered on main lawn stage
-      knifeChaser: { x: 440, y: 570 },        // Approaching from West terrace
-      archer: { x: 1260, y: 570 },            // Guarding East terrace
-      ghostAttractor: { x: 850, y: 285 },     // On high central walkway
-      ghost: { x: 1420, y: 220 }              // Upper East perch
+      player: { x: 850, y: 603 },             // Centered on main lawn stage (y = 635 - 32)
+      knifeChaser: { x: 220, y: 603 },        // West terrace (y = 635 - 32)
+      archer: { x: 1450, y: 603 },            // East terrace (y = 635 - 32)
+      ghostAttractor: { x: 850, y: 318 },     // High central walkway (y = 350 - 32)
+      ghost: { x: 1300, y: 200 }              // Upper East perch
     };
   }
 
   initDecorations() {
-    // 1. Drifting cumulus garden clouds
-    for (let i = 0; i < 7; i++) {
-      this.clouds.push({
-        x: (i * (this.width / 7)) + Math.random() * 80,
-        y: 60 + Math.random() * 110,
-        w: 120 + Math.random() * 90,
-        h: 36 + Math.random() * 20,
-        speed: 12 + Math.random() * 14,
-        alpha: 0.55 + Math.random() * 0.25
-      });
+    // 1. Drifting cumulus garden clouds (5 soft clouds across 1,700px)
+    const cloudConfigs = [
+      { x: 100, y: 75, w: 160, h: 42, speed: 16, alpha: 0.55 },
+      { x: 480, y: 130, w: 200, h: 48, speed: 13, alpha: 0.48 },
+      { x: 860, y: 80, w: 150, h: 38, speed: 18, alpha: 0.58 },
+      { x: 1220, y: 125, w: 190, h: 46, speed: 14, alpha: 0.50 },
+      { x: 1540, y: 90, w: 160, h: 40, speed: 17, alpha: 0.54 }
+    ];
+    for (const c of cloudConfigs) {
+      this.clouds.push(c);
     }
 
-    // 2. Background Distant Trees (Back foliage layer)
-    for (let x = 40; x < this.width; x += 150) {
+    // 2. Background Distant Trees - Minimal (only 3 soft silhouettes for open visibility)
+    const bgXs = [320, 850, 1380];
+    for (let i = 0; i < bgXs.length; i++) {
       this.bgTrees.push({
-        x: x + Math.random() * 40,
-        y: 780,
-        height: 190 + Math.random() * 60,
-        canopyWidth: 100 + Math.random() * 45,
-        hue: 115 + Math.random() * 30,
-        type: Math.random() < 0.4 ? 'round' : 'layered'
+        x: bgXs[i],
+        y: 850,
+        height: 220,
+        canopyWidth: 120,
+        hue: 125,
+        type: 'round'
       });
     }
 
-    // 3. Midground Trees (Apple trees, cherry blossoms, leafy oaks)
-    const treeTypes = ['apple', 'cherry', 'oak', 'willow'];
-    for (let x = 80; x < this.width; x += 220) {
+    // 3. Midground Trees - Only 3 clean green oak trees (NO pink blossom trees, NO flowers, NO visual clutter)
+    const midXs = [260, 850, 1440];
+    for (let i = 0; i < midXs.length; i++) {
       this.midTrees.push({
-        x: x + Math.random() * 30,
-        y: 780,
-        height: 160 + Math.random() * 40,
-        width: 80 + Math.random() * 30,
-        type: treeTypes[Math.floor(Math.random() * treeTypes.length)],
-        fruitColor: Math.random() < 0.5 ? '#ef4444' : '#ec4899',
-        swayOffset: Math.random() * Math.PI * 2
+        x: midXs[i],
+        y: 850,
+        height: 240,
+        width: 90,
+        type: 'oak',
+        fruitColor: null,
+        swayOffset: i * 2.0
       });
     }
 
-    // 4. Garden Bushes & Flowering Shrubs
-    for (let x = 20; x < this.width; x += 75) {
-      this.bushes.push({
-        x: x + Math.random() * 20,
-        y: 780,
-        w: 36 + Math.random() * 28,
-        h: 22 + Math.random() * 16,
-        color: Math.random() < 0.6 ? '#16a34a' : '#15803d',
-        flowerColor: ['#f43f5e', '#ec4899', '#fef08a', '#38bdf8', '#ffffff'][Math.floor(Math.random() * 5)]
-      });
-    }
-
-    // 5. Garden Ornaments (Picket fences, stone birdbaths, wooden park benches, glowing lanterns)
-    for (let x = 120; x < this.width; x += 420) {
-      this.decorations.push({
-        type: 'bench',
-        x: x,
-        y: 780
-      });
-    }
-
-    for (let x = 280; x < this.width; x += 520) {
-      this.decorations.push({
-        type: 'birdbath',
-        x: x,
-        y: 780
-      });
-    }
-
-    for (let x = 160; x < this.width; x += 380) {
-      this.decorations.push({
-        type: 'lantern',
-        x: x,
-        y: 780
-      });
-    }
-
-    // 6. Ambient Drifting Petals & Pollen Motes
-    for (let i = 0; i < 45; i++) {
-      this.petals.push({
-        x: Math.random() * this.width,
-        y: Math.random() * this.height,
-        vx: 24 + Math.random() * 32,
-        vy: 18 + Math.random() * 22,
-        size: 3 + Math.random() * 3.5,
-        rot: Math.random() * Math.PI * 2,
-        rotSpeed: 1 + Math.random() * 3,
-        color: Math.random() < 0.55 ? '#fbcfe8' : (Math.random() < 0.75 ? '#fed7aa' : '#fef08a'),
-        swayPhase: Math.random() * Math.PI * 2
-      });
-    }
+    // 4. ZERO flowers, ZERO petals, ZERO decorative clutter, ZERO fences
+    this.bushes = [];
+    this.decorations = [];
+    this.petals = [];
   }
 
   update(dt) {
     this.timer += dt;
 
-    // Clouds drift with wrap
+    // Clouds drift with seamless loop
     for (const c of this.clouds) {
       c.x += c.speed * dt;
-      if (c.x > this.width + 100) c.x = -150;
-    }
-
-    // Drifting flower petals & pollen
-    for (const petal of this.petals) {
-      petal.x += petal.vx * dt;
-      petal.y += (petal.vy + Math.sin(this.timer * 2.5 + petal.swayPhase) * 14) * dt;
-      petal.rot += petal.rotSpeed * dt;
-
-      // Wrap petals horizontally & reset vertically
-      if (petal.x >= this.width) petal.x -= this.width;
-      if (petal.y > this.height - 70) petal.y = 30 + Math.random() * 50;
+      if (c.x > this.width + 120) {
+        c.x = -180;
+      }
     }
   }
 
-  // AABB resolution supporting reliable platform landings & head-clear jumps
   resolveEntity(entity, dt) {
     const prevBottom = entity.prevY !== undefined ? entity.prevY + entity.height : entity.y + entity.height;
     let onGround = false;
 
+    // Check entity both in original coordinate and wrapped coordinate if spanning boundary
+    const xOffsets = [0];
+    if (entity.x + entity.width > this.width) xOffsets.push(-this.width);
+    if (entity.x < 0) xOffsets.push(this.width);
+
     // Check Platforms
     for (const p of this.platforms) {
       if (p.type === 'oneway') {
-        if (
-          entity.vy >= 0 &&
-          !entity.isDroppingDown &&
-          entity.x + entity.width > p.x + 2 &&
-          entity.x < p.x + p.w - 2
-        ) {
-          const currBottom = entity.y + entity.height;
-          const maxDrop = Math.max(16, entity.vy * dt + 6);
-          if (currBottom >= p.y && prevBottom <= p.y + 10 && currBottom <= p.y + maxDrop) {
-            entity.y = p.y - entity.height;
-            entity.vy = 0;
-            onGround = true;
+        if (entity.vy >= 0 && !entity.isDroppingDown) {
+          for (const xOff of xOffsets) {
+            const ex = entity.x + xOff;
+            // For platforms touching boundary, allow edge crossing without 2px margin inset
+            const leftMargin = (p.x === 0) ? -50 : 2;
+            const rightMargin = (p.x + p.w >= this.width) ? 50 : 2;
+            if (ex + entity.width > p.x + leftMargin && ex < p.x + p.w - rightMargin) {
+              const currBottom = entity.y + entity.height;
+              const maxDrop = Math.max(16, entity.vy * dt + 6);
+              if (currBottom >= p.y && prevBottom <= p.y + 10 && currBottom <= p.y + maxDrop) {
+                entity.y = p.y - entity.height;
+                entity.vy = 0;
+                onGround = true;
+                break;
+              }
+            }
           }
         }
       } else if (p.type === 'solid') {
@@ -286,14 +231,20 @@ class GameMap {
     const cMin = minCopy !== undefined ? minCopy : Math.floor(viewLeft / mapW);
     const cMax = maxCopy !== undefined ? maxCopy : Math.floor(viewRight / mapW);
 
-    // 1. Daytime Garden Park Sky Gradient across the entire visible span
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, this.height);
-    skyGrad.addColorStop(0, '#38bdf8');   // Vivid clear azure
-    skyGrad.addColorStop(0.35, '#7dd3fc');
-    skyGrad.addColorStop(0.7, '#bae6fd');  // Soft park horizon
+    // 1. Daytime Garden Park Sky Gradient across the entire visible span (Fully covers 9:16 mobile portrait & landscape)
+    const halfVisibleH = (camera.viewportHeight / camera.zoom) / 2 + 120;
+    const viewTop = Math.min(-600, camera.y - halfVisibleH);
+    const viewBottom = Math.max(this.height + 600, camera.y + halfVisibleH);
+    const totalH = viewBottom - viewTop;
+
+    const skyGrad = ctx.createLinearGradient(0, viewTop, 0, this.height);
+    skyGrad.addColorStop(0, '#0284c7');    // Clear azure zenith
+    skyGrad.addColorStop(0.35, '#38bdf8'); // Vivid clear azure
+    skyGrad.addColorStop(0.65, '#7dd3fc');
+    skyGrad.addColorStop(0.85, '#bae6fd'); // Soft park horizon
     skyGrad.addColorStop(1, '#dcfce7');    // Warm ambient garden grass reflection
     ctx.fillStyle = skyGrad;
-    ctx.fillRect(viewLeft - 100, 0, (viewRight - viewLeft) + 200, this.height);
+    ctx.fillRect(viewLeft - 100, viewTop, (viewRight - viewLeft) + 200, totalH);
 
     // 2. Soft Park Sunbeams (Warm ambient diagonal rays)
     ctx.save();
@@ -331,207 +282,151 @@ class GameMap {
       ctx.translate(k * mapW, 0);
 
       // --- LAYER A: Distant Rolling Hills (Far Parallax & Depth) ---
-      // Distant Misty Ridge
+      // Strictly periodic harmonic curves ensuring 100% zero-cliff seam across x = 0 <-> 1700
+      const k1 = (4 * Math.PI) / mapW;
       ctx.fillStyle = 'rgba(134, 239, 172, 0.32)';
       ctx.beginPath();
       ctx.moveTo(0, 780);
-      for (let hx = 0; hx <= mapW; hx += 160) {
-        const hy = 510 + Math.sin(hx * 0.0035 + 1.2) * 65;
-        ctx.quadraticCurveTo(hx - 80, hy - 25, hx, hy);
+      for (let hx = 0; hx <= mapW; hx += 25) {
+        const hy = 510 + Math.sin(hx * k1) * 65;
+        ctx.lineTo(hx, hy);
       }
       ctx.lineTo(mapW, 780);
       ctx.closePath();
       ctx.fill();
 
       // Mid-distance Lush Meadow Hills
+      const k2 = (6 * Math.PI) / mapW;
       ctx.fillStyle = 'rgba(74, 222, 128, 0.45)';
       ctx.beginPath();
       ctx.moveTo(0, 780);
-      for (let hx = 0; hx <= mapW; hx += 140) {
-        const hy = 570 + Math.sin(hx * 0.0055 + 0.4) * 45;
-        ctx.quadraticCurveTo(hx - 70, hy - 20, hx, hy);
+      for (let hx = 0; hx <= mapW; hx += 25) {
+        const hy = 570 + Math.sin(hx * k2) * 45;
+        ctx.lineTo(hx, hy);
       }
       ctx.lineTo(mapW, 780);
       ctx.closePath();
       ctx.fill();
 
-      // --- LAYER B: Background Distant Trees ---
+      // --- LAYER B: Background Distant Trees (Dual-side Toroidal Wrapping) ---
       for (const t of this.bgTrees) {
-        ctx.fillStyle = '#78350f';
-        ctx.fillRect(t.x - 7, t.y - t.height, 14, t.height);
+        const xPositions = [t.x];
+        if (t.x < 110) xPositions.push(t.x + mapW);
+        if (t.x > mapW - 110) xPositions.push(t.x - mapW);
 
-        // Soft canopy
-        ctx.fillStyle = `hsl(${t.hue}, 48%, 38%)`;
-        ctx.beginPath();
-        ctx.arc(t.x, t.y - t.height - 18, t.canopyWidth * 0.45, 0, Math.PI * 2);
-        ctx.arc(t.x - 22, t.y - t.height - 8, t.canopyWidth * 0.35, 0, Math.PI * 2);
-        ctx.arc(t.x + 22, t.y - t.height - 8, t.canopyWidth * 0.35, 0, Math.PI * 2);
-        ctx.fill();
+        for (const tx of xPositions) {
+          ctx.fillStyle = '#78350f';
+          ctx.fillRect(tx - 7, t.y - t.height, 14, t.height);
+
+          // Soft canopy
+          ctx.fillStyle = `hsl(${t.hue}, 48%, 38%)`;
+          ctx.beginPath();
+          ctx.arc(tx, t.y - t.height - 18, t.canopyWidth * 0.45, 0, Math.PI * 2);
+          ctx.arc(tx - 22, t.y - t.height - 8, t.canopyWidth * 0.35, 0, Math.PI * 2);
+          ctx.arc(tx + 22, t.y - t.height - 8, t.canopyWidth * 0.35, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
-      // --- LAYER C: Wooden Garden Picket Fences ---
-      ctx.fillStyle = '#b45309';
-      ctx.strokeStyle = '#78350f';
-      ctx.lineWidth = 1.5;
-      for (let fx = 0; fx <= mapW; fx += 28) {
-        ctx.fillRect(fx, 742, 9, 40);
-        ctx.strokeRect(fx, 742, 9, 40);
-        ctx.beginPath();
-        ctx.moveTo(fx, 742);
-        ctx.lineTo(fx + 4.5, 734);
-        ctx.lineTo(fx + 9, 742);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      }
-      ctx.fillRect(0, 750, mapW, 5);
-      ctx.fillRect(0, 764, mapW, 5);
-
-      // --- LAYER D: Midground Park Trees (Swaying Branches, Fruit & Blossoms) ---
+      // --- LAYER D: Midground Park Trees (Dual-side Toroidal Wrapping & Sway) ---
       for (const mt of this.midTrees) {
-        const sway = Math.sin(this.timer * 2.2 + mt.swayOffset) * 4;
+        const xPositions = [mt.x];
+        if (mt.x < 120) xPositions.push(mt.x + mapW);
+        if (mt.x > mapW - 120) xPositions.push(mt.x - mapW);
 
-        // Tree Trunk
-        ctx.fillStyle = '#854d0e';
-        ctx.beginPath();
-        ctx.moveTo(mt.x - 8, mt.y);
-        ctx.lineTo(mt.x - 5, mt.y - mt.height);
-        ctx.lineTo(mt.x + 5, mt.y - mt.height);
-        ctx.lineTo(mt.x + 8, mt.y);
-        ctx.closePath();
-        ctx.fill();
+        for (const tx of xPositions) {
+          const sway = Math.sin(this.timer * 2.2 + mt.swayOffset) * 4;
 
-        // Branches with sway
-        ctx.save();
-        ctx.translate(mt.x, mt.y - mt.height);
-        ctx.rotate(sway * 0.02);
-
-        if (mt.type === 'cherry') {
-          // Flowering cherry blossom
-          ctx.fillStyle = '#f472b6';
+          // Tree Trunk
+          ctx.fillStyle = '#854d0e';
           ctx.beginPath();
-          ctx.arc(0, -20, mt.width * 0.55, 0, Math.PI * 2);
-          ctx.arc(-24, -10, mt.width * 0.42, 0, Math.PI * 2);
-          ctx.arc(24, -10, mt.width * 0.42, 0, Math.PI * 2);
+          ctx.moveTo(tx - 8, mt.y);
+          ctx.lineTo(tx - 5, mt.y - mt.height);
+          ctx.lineTo(tx + 5, mt.y - mt.height);
+          ctx.lineTo(tx + 8, mt.y);
+          ctx.closePath();
           ctx.fill();
 
-          ctx.fillStyle = '#fbcfe8';
-          ctx.beginPath();
-          ctx.arc(-10, -24, mt.width * 0.35, 0, Math.PI * 2);
-          ctx.arc(12, -22, mt.width * 0.35, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (mt.type === 'apple') {
-          // Lush apple tree
+          // Branches with sway
+          ctx.save();
+          ctx.translate(tx, mt.y - mt.height);
+          ctx.rotate(sway * 0.02);
+
+          // Simple clean garden green oak canopy (NO flowers, NO fruits)
           ctx.fillStyle = '#15803d';
           ctx.beginPath();
-          ctx.arc(0, -22, mt.width * 0.52, 0, Math.PI * 2);
-          ctx.arc(-26, -10, mt.width * 0.44, 0, Math.PI * 2);
-          ctx.arc(26, -10, mt.width * 0.44, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#22c55e';
-          ctx.beginPath();
-          ctx.arc(0, -30, mt.width * 0.38, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Red apples
-          ctx.fillStyle = '#ef4444';
-          ctx.beginPath();
-          ctx.arc(-14, -18, 4, 0, Math.PI * 2);
-          ctx.arc(16, -15, 4, 0, Math.PI * 2);
-          ctx.arc(-2, -32, 4, 0, Math.PI * 2);
-          ctx.arc(24, -26, 3.5, 0, Math.PI * 2);
-          ctx.arc(-22, -8, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (mt.type === 'willow') {
-          // Elegant weeping willow
-          ctx.fillStyle = '#16a34a';
-          ctx.beginPath();
-          ctx.ellipse(0, -20, mt.width * 0.6, 38, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Hanging drooping fronds
-          ctx.strokeStyle = '#22c55e';
-          ctx.lineWidth = 3;
-          ctx.lineCap = 'round';
-          for (let w = -32; w <= 32; w += 10) {
-            ctx.beginPath();
-            ctx.moveTo(w, -10);
-            ctx.quadraticCurveTo(w + sway * 1.5, 12, w + sway * 2.2, 28);
-            ctx.stroke();
-          }
-        } else {
-          // Great Garden Oak
-          ctx.fillStyle = '#166534';
-          ctx.beginPath();
           ctx.arc(0, -24, mt.width * 0.58, 0, Math.PI * 2);
-          ctx.arc(-30, -12, mt.width * 0.44, 0, Math.PI * 2);
-          ctx.arc(30, -12, mt.width * 0.44, 0, Math.PI * 2);
+          ctx.arc(-26, -12, mt.width * 0.44, 0, Math.PI * 2);
+          ctx.arc(26, -12, mt.width * 0.44, 0, Math.PI * 2);
           ctx.fill();
 
           ctx.fillStyle = '#22c55e';
           ctx.beginPath();
-          ctx.arc(-10, -32, mt.width * 0.4, 0, Math.PI * 2);
-          ctx.arc(14, -30, mt.width * 0.4, 0, Math.PI * 2);
+          ctx.arc(-8, -32, mt.width * 0.38, 0, Math.PI * 2);
+          ctx.arc(12, -30, mt.width * 0.38, 0, Math.PI * 2);
           ctx.fill();
-        }
 
-        ctx.restore();
+          ctx.restore();
+        }
       }
 
-      // --- LAYER E: Garden Ornaments (Benches, Birdbaths, Lanterns) ---
+      // --- LAYER E: Garden Ornaments (Dual-side Toroidal Wrapping) ---
       for (const dec of this.decorations) {
-        if (dec.type === 'bench') {
-          // Wooden park bench
-          ctx.fillStyle = '#b45309';
-          ctx.fillRect(dec.x - 22, dec.y - 18, 44, 5); // seat
-          ctx.fillRect(dec.x - 20, dec.y - 32, 40, 10); // backrest
-          ctx.fillStyle = '#451a03';
-          ctx.fillRect(dec.x - 18, dec.y - 13, 4, 13); // legs
-          ctx.fillRect(dec.x + 14, dec.y - 13, 4, 13);
-        } else if (dec.type === 'birdbath') {
-          // Carved stone birdbath
-          ctx.fillStyle = '#64748b';
-          ctx.fillRect(dec.x - 4, dec.y - 30, 8, 30);
-          ctx.fillRect(dec.x - 12, dec.y - 4, 24, 4);
-          ctx.beginPath();
-          ctx.ellipse(dec.x, dec.y - 32, 18, 6, 0, 0, Math.PI * 2);
-          ctx.fill();
-          // Clear water
-          ctx.fillStyle = '#38bdf8';
-          ctx.beginPath();
-          ctx.ellipse(dec.x, dec.y - 33, 14, 4, 0, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (dec.type === 'lantern') {
-          // Classical stone park lantern
-          ctx.fillStyle = '#334155';
-          ctx.fillRect(dec.x - 3, dec.y - 65, 6, 65);
-          ctx.fillRect(dec.x - 9, dec.y - 74, 18, 4);
-          // Warm glowing core
-          ctx.fillStyle = '#fef08a';
-          ctx.fillRect(dec.x - 6, dec.y - 70, 12, 10);
-          ctx.fillStyle = 'rgba(254, 240, 138, 0.28)';
-          ctx.beginPath();
-          ctx.arc(dec.x, dec.y - 65, 24, 0, Math.PI * 2);
-          ctx.fill();
+        const xPositions = [dec.x];
+        if (dec.x < 50) xPositions.push(dec.x + mapW);
+        if (dec.x > mapW - 50) xPositions.push(dec.x - mapW);
+
+        for (const dx of xPositions) {
+          if (dec.type === 'bench') {
+            // Wooden park bench
+            ctx.fillStyle = '#b45309';
+            ctx.fillRect(dx - 22, dec.y - 18, 44, 5); // seat
+            ctx.fillRect(dx - 20, dec.y - 32, 40, 10); // backrest
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(dx - 18, dec.y - 13, 4, 13); // legs
+            ctx.fillRect(dx + 14, dec.y - 13, 4, 13);
+          } else if (dec.type === 'birdbath') {
+            // Carved stone birdbath
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(dx - 4, dec.y - 30, 8, 30);
+            ctx.fillRect(dx - 12, dec.y - 4, 24, 4);
+            ctx.beginPath();
+            ctx.ellipse(dx, dec.y - 32, 18, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Clear water
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.ellipse(dx, dec.y - 33, 14, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (dec.type === 'lantern') {
+            // Classical stone park lantern
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(dx - 3, dec.y - 65, 6, 65);
+            ctx.fillRect(dx - 9, dec.y - 74, 18, 4);
+            // Warm glowing core
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(dx - 6, dec.y - 70, 12, 10);
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.28)';
+            ctx.beginPath();
+            ctx.arc(dx, dec.y - 65, 24, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
-      // --- LAYER F: Flowering Bushes & Boxwood Shrubs ---
+      // --- LAYER F: Flowering Bushes & Boxwood Shrubs (Dual-side Toroidal Wrapping) ---
       for (const b of this.bushes) {
-        ctx.fillStyle = b.color;
-        ctx.beginPath();
-        ctx.ellipse(b.x, b.y - b.h * 0.45, b.w * 0.5, b.h * 0.5, 0, 0, Math.PI * 2);
-        ctx.fill();
+        const xPositions = [b.x];
+        if (b.x < 60) xPositions.push(b.x + mapW);
+        if (b.x > mapW - 60) xPositions.push(b.x - mapW);
 
-        // Little flower blossoms
-        ctx.fillStyle = b.flowerColor;
-        ctx.beginPath();
-        ctx.arc(b.x - b.w * 0.22, b.y - b.h * 0.6, 2.5, 0, Math.PI * 2);
-        ctx.arc(b.x + b.w * 0.2, b.y - b.h * 0.55, 2.5, 0, Math.PI * 2);
-        ctx.arc(b.x, b.y - b.h * 0.75, 2.5, 0, Math.PI * 2);
-        ctx.arc(b.x - b.w * 0.1, b.y - b.h * 0.35, 2, 0, Math.PI * 2);
-        ctx.fill();
+        for (const bx of xPositions) {
+          // Clean green garden shrub (NO flowers)
+          ctx.fillStyle = b.color;
+          ctx.beginPath();
+          ctx.ellipse(bx, b.y - b.h * 0.45, b.w * 0.5, b.h * 0.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       // --- LAYER G: Playable Garden Platforms (Organic, Layered & Natural) ---
@@ -556,14 +451,20 @@ class GameMap {
             ctx.fillRect(px + 1, p.y, Math.min(plankW - 2, p.x + p.w - px), 5);
           }
 
-          // Carved end post finials
+          // Carved end post finials (only at true outer ends, NOT at loop boundary seam)
           ctx.fillStyle = '#78350f';
-          ctx.fillRect(p.x - 2, p.y - 6, 6, p.h + 6);
-          ctx.fillRect(p.x + p.w - 4, p.y - 6, 6, p.h + 6);
-          ctx.beginPath();
-          ctx.arc(p.x + 1, p.y - 7, 4, 0, Math.PI * 2);
-          ctx.arc(p.x + p.w - 1, p.y - 7, 4, 0, Math.PI * 2);
-          ctx.fill();
+          if (p.x > 0) {
+            ctx.fillRect(p.x - 2, p.y - 6, 6, p.h + 6);
+            ctx.beginPath();
+            ctx.arc(p.x + 1, p.y - 7, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (p.x + p.w < mapW) {
+            ctx.fillRect(p.x + p.w - 4, p.y - 6, 6, p.h + 6);
+            ctx.beginPath();
+            ctx.arc(p.x + p.w - 1, p.y - 7, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
 
           // Hanging Climbing Ivy with Breeze Sway
           ctx.fillStyle = '#22c55e';
@@ -661,51 +562,7 @@ class GameMap {
             ctx.fill();
           }
 
-          // Wildflower blossoms
-          for (let fx = p.x + 20; fx < p.x + p.w - 20; fx += 55) {
-            ctx.fillStyle = (fx % 110 === 0) ? '#fef08a' : '#fbcfe8';
-            ctx.beginPath();
-            ctx.arc(fx, p.y - 3, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          ctx.restore();
-        } else {
-          // GROUND FLOOR (Main Garden Turf)
-          ctx.save();
-          // Rich loamy subsoil
-          const groundGrad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
-          groundGrad.addColorStop(0, '#78350f');
-          groundGrad.addColorStop(0.35, '#59270b');
-          groundGrad.addColorStop(1, '#2e1005');
-          ctx.fillStyle = groundGrad;
-          ctx.fillRect(p.x, p.y + 8, p.w, p.h - 8);
-
-          // Lush emerald turf
-          const turfGrad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + 10);
-          turfGrad.addColorStop(0, '#4ade80');
-          turfGrad.addColorStop(1, '#15803d');
-          ctx.fillStyle = turfGrad;
-          ctx.fillRect(p.x, p.y, p.w, 10);
-
-          // Animated swaying blades
-          ctx.fillStyle = '#22c55e';
-          for (let gx = p.x + 2; gx < p.x + p.w; gx += 10) {
-            const gSway = Math.sin(this.timer * 3.0 + gx * 0.04) * 2.5;
-            ctx.beginPath();
-            ctx.moveTo(gx, p.y);
-            ctx.lineTo(gx + 2.5 + gSway, p.y - 5);
-            ctx.lineTo(gx + 5, p.y);
-            ctx.fill();
-          }
-
-          // Field wildflowers
-          for (let fx = p.x + 25; fx < p.x + p.w; fx += 45) {
-            ctx.fillStyle = (fx % 90 === 0) ? '#fef08a' : (fx % 135 === 0 ? '#38bdf8' : '#ffffff');
-            ctx.beginPath();
-            ctx.arc(fx, p.y - 3, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          // Clean grass mound (NO flowers)
 
           ctx.restore();
         }

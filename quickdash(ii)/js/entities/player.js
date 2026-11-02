@@ -10,8 +10,8 @@ class Player {
     this.y = y;
     this.prevX = x;
     this.prevY = y;
-    this.width = 52;
-    this.height = 64;
+    this.width = 26;
+    this.height = 32;
 
     // Movement physics
     this.vx = 0;
@@ -209,6 +209,7 @@ class Player {
     }
     if (!input) input = { left: false, right: false, up: false, down: false, jump: false, jumpJustPressed: false, dash: false, dashJustPressed: false, attack: false, attackJustPressed: false };
     if (!map) map = (window.game && window.game.map) ? window.game.map : { width: 1700, height: 850, resolveEntity: () => false };
+    const acts = (input && input.actions) ? input.actions : input;
     this.prevX = this.x;
     this.prevY = this.y;
 
@@ -268,10 +269,10 @@ class Player {
       }
     } else {
       // Dash Trigger
-      if (input.actions.dashJustPressed && this.dashCooldownTimer <= 0) {
+      if (acts.dashJustPressed && this.dashCooldownTimer <= 0) {
         let dir = this.facing;
-        if (input.actions.left) dir = -1;
-        if (input.actions.right) dir = 1;
+        if (acts.left) dir = -1;
+        if (acts.right) dir = 1;
 
         this.isDashing = true;
         this.dashTimer = this.dashDuration;
@@ -288,14 +289,14 @@ class Player {
       }
 
       // Attack Trigger
-      if (input.actions.attackJustPressed) {
+      if (acts.attackJustPressed) {
         this.triggerAttack();
       }
 
       // Horizontal Run
       let moveDir = 0;
-      if (input.actions.left) moveDir -= 1;
-      if (input.actions.right) moveDir += 1;
+      if (acts.left) moveDir -= 1;
+      if (acts.right) moveDir += 1;
 
       if (moveDir !== 0) {
         this.facing = moveDir;
@@ -328,13 +329,13 @@ class Player {
         this.coyoteTimer -= dt;
       }
 
-      if (input.actions.jumpJustPressed) {
+      if (acts.jumpJustPressed) {
         this.jumpBufferTimer = 0.12;
       } else {
         this.jumpBufferTimer -= dt;
       }
 
-      if (input.actions.down && input.actions.jumpJustPressed && this.grounded) {
+      if (acts.down && acts.jumpJustPressed && this.grounded) {
         this.isDroppingDown = true;
         this.dropDownTimer = 0.22;
         this.y += 4;
@@ -355,7 +356,7 @@ class Player {
         if (window.particleSystem) {
           particleSystem.createJumpDust(this.x + this.width / 2, this.y + this.height);
         }
-      } else if (input.actions.jumpJustPressed && !this.grounded && this.jumpsLeft > 0) {
+      } else if (acts.jumpJustPressed && !this.grounded && this.jumpsLeft > 0) {
         // Double Jump (Jump 2)
         this.vy = this.doubleJumpPower;
         this.jumpsLeft = 0;
@@ -378,11 +379,11 @@ class Player {
       }
 
       // Variable jump height cutoff
-      if (!input.actions.jump && this.vy < -260) {
+      if (!acts.jump && this.vy < -260) {
         this.vy = -260;
       }
 
-      if (input.actions.down && !this.grounded) {
+      if (acts.down && !this.grounded) {
         this.vy += 800 * dt;
       }
 
@@ -408,7 +409,13 @@ class Player {
     }
 
     if (this.y < 42) { this.y = 42; this.vy = 0; }
-    if (this.y > map.height - 70 - this.height) { this.y = map.height - 70 - this.height; this.vy = 0; this.grounded = true; }
+    // Vertical wraparound through open bottom (emerge smoothly from top sky ceiling)
+    if (this.y > map.height) {
+      this.y = 45;
+      this.prevY = 45;
+      this.grounded = false;
+      this.vy = Math.min(this.vy, 350);
+    }
 
     if (!wasGrounded && this.grounded) {
       this.jumpsLeft = 2; // Jump 1 + Double Jump restored upon landing
@@ -437,10 +444,10 @@ class Player {
         this.attackHitbox = null;
       } else {
         this.attackHitbox = {
-          x: this.facing > 0 ? this.x + this.width - 6 : this.x - 38,
-          y: this.y - 4,
-          w: 80,
-          h: this.height + 12
+          x: this.facing > 0 ? this.x + this.width - 2 : this.x - 24,
+          y: this.y - 2,
+          w: 32,
+          h: this.height + 4
         };
       }
     }
@@ -479,7 +486,7 @@ class Player {
     if (this.flipAngle > 0) {
       ctx.rotate(this.facing > 0 ? this.flipAngle : -this.flipAngle);
     }
-    ctx.scale(this.facing * this.squashX * 2, this.squashY * 2);
+    ctx.scale(this.facing * this.squashX, this.squashY);
 
     const baseW = 26;
     const baseH = 32;
@@ -642,7 +649,7 @@ class Player {
     if (this.hasShield) {
       ctx.save();
       const shieldPulse = Math.sin(this.animTime * 6.5) * 2;
-      const shieldRad = Math.max(halfW, halfH) + 14 + shieldPulse;
+      const shieldRad = Math.max(halfW, halfH) + 6 + shieldPulse;
 
       // Soft translucent energy gradient
       const bubbleGrad = ctx.createRadialGradient(0, 0, shieldRad * 0.4, 0, 0, shieldRad);

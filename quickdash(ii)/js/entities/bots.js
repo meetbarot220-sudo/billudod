@@ -14,8 +14,8 @@ class BaseBot {
     this.y = y;
     this.prevX = x;
     this.prevY = y;
-    this.width = 52;
-    this.height = 64;
+    this.width = 26;
+    this.height = 32;
     this.typeName = typeName;
 
     // Physics
@@ -52,7 +52,7 @@ class KnifeChaser extends BaseBot {
     this.windupDuration = 0.16;
     this.attackDuration = 0.18;
     this.attackCooldown = 0.30;
-    this.attackRange = 85;
+    this.attackRange = 46;
     this.state = 'CHASE';
   }
 
@@ -106,7 +106,7 @@ class KnifeChaser extends BaseBot {
 
       case 'ATTACK':
         // Player cannot be damaged while in DASH state!
-        if (dist < 56 && Math.abs(dy) < 40 && !player.isDashing) {
+        if (dist < 34 && Math.abs(dy) < 26 && !player.isDashing) {
           player.takeDamage(1000, this.x, false);
         }
 
@@ -141,6 +141,14 @@ class KnifeChaser extends BaseBot {
       this.x += map.width;
       this.prevX += map.width;
     }
+
+    // Vertical wraparound through open bottom (emerges from top sky)
+    if (this.y > map.height) {
+      this.y = 45;
+      this.prevY = 45;
+      this.grounded = false;
+      this.vy = Math.min(this.vy, 350);
+    }
   }
 
   draw(ctx) {
@@ -149,7 +157,7 @@ class KnifeChaser extends BaseBot {
     const centerY = this.y + this.height / 2;
 
     ctx.translate(centerX, centerY);
-    ctx.scale(this.facing * 2, 2);
+    ctx.scale(this.facing, 1);
 
     const baseW = 26;
     const baseH = 32;
@@ -414,6 +422,14 @@ class ArcherBot extends BaseBot {
       this.x += map.width;
       this.prevX += map.width;
     }
+
+    // Vertical wraparound through open bottom (emerges from top sky)
+    if (this.y > map.height) {
+      this.y = 45;
+      this.prevY = 45;
+      this.grounded = false;
+      this.vy = Math.min(this.vy, 350);
+    }
   }
 
   draw(ctx) {
@@ -426,7 +442,7 @@ class ArcherBot extends BaseBot {
     const centerY = this.y + this.height / 2;
 
     ctx.translate(centerX, centerY);
-    ctx.scale(this.facing * 2, 2);
+    ctx.scale(this.facing, 1);
 
     const baseW = 26;
     const baseH = 32;
@@ -547,18 +563,39 @@ class ArcherBot extends BaseBot {
 }
 
 // ----------------------------------------------------
-// BOT 3 — GHOST ATTRACTOR (Mystic Violet Cat)
+// BOT 3 — PURPLE WAND BOT / GHOST ATTRACTOR (Mystic Violet Cat)
+// Dual role:
+// 1. Ghost Attraction: Summons and tethers spectral ghosts toward the player.
+// 2. Magical Wall Ability: Every 5-second cycle, charges with visible wand buildup -> materializes a 3-second localized barrier that blocks ONLY ONE jump route, leaving the other route completely open!
 // ----------------------------------------------------
 class GhostAttractorBot extends BaseBot {
   constructor(x, y) {
     super(x, y, 'Ghost Attractor');
     this.speed = 225;
-    this.state = 'PATROL';
-    this.attractInterval = 2.3;
+
+    // AI Waypoint navigation
+    this.currentWaypointIndex = 0;
+
+    // Ghost attraction mechanics
+    this.attractInterval = 3.2;
     this.attractTimer = 1.0;
     this.tetherAlpha = 0;
     this.targetGhost = null;
-    this.currentWaypointIndex = 0;
+
+    // Wall Attack Cycle State Machine
+    // Every 5-second cycle: CHARGE (5.0s visible wand warning) -> WALL_ACTIVE (strictly 3.0s barrier) -> COOLDOWN (2.0s) -> repeat
+    this.wallState = 'CHARGE'; // Begin charging for early battle excitement
+    this.wallChargeDuration = 5.0;   // 5.0s full visible warning & charging buildup
+    this.wallDuration = 3.0;         // Strictly 3.0s wall active duration
+    this.wallCooldownDuration = 2.0; // Rest before next 5s attack cycle
+    this.wallStateTimer = 0;
+    this.chargeSoundTimer = 0;
+
+    // Targeted jump route geometry (blocks ONLY ONE jump route!)
+    this.targetX = x + 180;
+    this.targetY = 490;
+    this.targetH = 145; // Height of one jump route
+    this.targetLocked = false;
   }
 
   update(dt, player, map, ghosts, game) {
@@ -566,6 +603,7 @@ class GhostAttractorBot extends BaseBot {
     this.prevY = this.y;
     this.animTime += dt;
     this.stateTimer += dt;
+    this.wallStateTimer += dt;
     if (this.jumpCooldown > 0) this.jumpCooldown -= dt;
 
     if (this.tetherAlpha > 0) {
@@ -574,46 +612,46 @@ class GhostAttractorBot extends BaseBot {
 
     this.tailAngle = Math.sin(this.animTime * 9) * 0.35;
 
+    const mw = map.width;
     let dx = (player.x + player.width / 2) - (this.x + this.width / 2);
-    if (dx > map.width / 2) dx -= map.width;
-    if (dx < -map.width / 2) dx += map.width;
+    if (dx > mw / 2) dx -= mw;
+    if (dx < -mw / 2) dx += mw;
     this.facing = dx >= 0 ? 1 : -1;
 
-    // Waypoint patrol
-    const wp = map.waypoints[this.currentWaypointIndex];
-    if (wp) {
-      let wpDistX = wp.x - this.x;
-      if (wpDistX > map.width / 2) wpDistX -= map.width;
-      if (wpDistX < -map.width / 2) wpDistX += map.width;
-      if (Math.abs(wpDistX) > 20) {
-        this.vx = (wpDistX > 0 ? 1 : -1) * this.speed;
-      } else {
-        this.vx *= 0.7;
-        if (Math.random() < 0.02) {
-          this.currentWaypointIndex = Math.floor(Math.random() * map.waypoints.length);
-        }
-      }
+    // 1. Waypoint Platform Traversal AI across 1700px garden map
+    const waypoints = map.waypoints && map.waypoints.length > 0
+      ? map.waypoints
+      : [{ x: 360, y: 470 }, { x: 850, y: 470 }, { x: 1340, y: 470 }];
+    const wp = waypoints[this.currentWaypointIndex % waypoints.length];
+    let wpDx = wp.x - (this.x + this.width / 2);
+    if (wpDx > mw / 2) wpDx -= mw;
+    if (wpDx < -mw / 2) wpDx += mw;
 
-      if (this.grounded && this.jumpCooldown <= 0 && wp.y < this.y - 36) {
-        this.vy = -600;
-        this.grounded = false;
-        this.jumpCooldown = 1.2;
+    if (Math.abs(wpDx) > 20) {
+      this.vx = (wpDx > 0 ? 1 : -1) * this.speed * (this.wallState === 'CHARGE' ? 0.5 : 0.85);
+    } else {
+      this.vx *= 0.7;
+      if (Math.random() < 0.02) {
+        this.currentWaypointIndex = Math.floor(Math.random() * waypoints.length);
       }
     }
 
-    // Ghost Attraction cycle:
-    // If no ghost exists, summons one into the garden!
-    // If a ghost exists, redirects and empowers it toward the player!
+    if (this.grounded && this.jumpCooldown <= 0 && wp.y < this.y - 36) {
+      this.vy = -600;
+      this.grounded = false;
+      this.jumpCooldown = 1.2;
+    }
+
+    // 2. Ghost Attraction Cycle (Summons & lures ghosts towards player)
     this.attractTimer -= dt;
     if (this.attractTimer <= 0) {
       this.attractTimer = this.attractInterval;
 
-      if (ghosts.length === 0 && game) {
-        // Summon a ghost into the garden near the attractor
+      if (ghosts && ghosts.length === 0 && game) {
         game.spawnGhost(this.x + (this.facing > 0 ? 60 : -60), this.y - 40);
         this.tetherAlpha = 1.0;
         if (window.soundManager) soundManager.playGhostAttract();
-      } else if (ghosts.length > 0) {
+      } else if (ghosts && ghosts.length > 0) {
         this.targetGhost = ghosts[0];
         if (this.targetGhost) {
           this.targetGhost.attractTowards(player, this);
@@ -634,6 +672,123 @@ class GhostAttractorBot extends BaseBot {
       }
     }
 
+    // 3. Wall Attack System: Every 5 seconds begins wall attack
+    switch (this.wallState) {
+      case 'COOLDOWN':
+        if (this.wallStateTimer >= this.wallCooldownDuration) {
+          // Begin 5-second CHARGING WARNING phase
+          this.wallState = 'CHARGE';
+          this.wallStateTimer = 0;
+          this.chargeSoundTimer = 0;
+          this.targetLocked = false;
+          if (window.soundManager) soundManager.playMagicCharge();
+        }
+        break;
+
+      case 'CHARGE':
+        // Pulse charging audio cue every 1.25s
+        this.chargeSoundTimer += dt;
+        if (this.chargeSoundTimer >= 1.25 && this.wallStateTimer < this.wallChargeDuration - 0.5) {
+          this.chargeSoundTimer = 0;
+          if (window.soundManager) soundManager.playMagicCharge();
+        }
+
+        // Target ONE jump route ahead of the player:
+        // Analyzes player's current vertical tier and direction to block exactly ONE jump/route,
+        // leaving the alternate route (underneath, above, or around) completely open!
+        if (!this.targetLocked) {
+          const moveDir = (player.vx !== 0 ? Math.sign(player.vx) : player.facing);
+          let proposedX = player.x + (player.width / 2) + moveDir * 180;
+          this.targetX = ((proposedX % mw) + mw) % mw;
+
+          // Never spawn directly on player: ensure at least 130px distance
+          let distFromPlayer = Math.abs(this.targetX - (player.x + player.width / 2));
+          if (distFromPlayer < 120) {
+            this.targetX = (( (player.x + player.width / 2 + moveDir * 160) % mw ) + mw) % mw;
+          }
+
+          // Choose jump route height based on player tier:
+          // Localized height h = 145px (spans ONLY between two tiers, NOT whole screen)
+          if (player.y >= 610) {
+            // Player near ground (y = 780): Block jump route up to Lower tier (y = 635 .. 780)
+            this.targetY = 635;
+            this.targetH = 145;
+          } else if (player.y >= 460) {
+            // Player at Lower tier (y = 635): Block jump route up to Mid tier (y = 490 .. 635)
+            // Route below (down to ground) and above remain completely open!
+            this.targetY = 490;
+            this.targetH = 145;
+          } else if (player.y >= 320) {
+            // Player at Mid tier (y = 490): Block jump route up to Upper tier (y = 350 .. 490)
+            // Route below (lower tier/ground) remains completely open!
+            this.targetY = 350;
+            this.targetH = 140;
+          } else {
+            // Player at Upper tier (y = 350): Block jump route up to Summit (y = 210 .. 350)
+            this.targetY = 210;
+            this.targetH = 140;
+          }
+
+          // Lock the target position for the final 1.5 seconds of charging
+          if (this.wallStateTimer >= this.wallChargeDuration - 1.5) {
+            this.targetLocked = true;
+          }
+        }
+
+        // Visible magical particles gathering into the wand crystal orb
+        if (window.particleSystem && Math.random() < 0.65) {
+          const wandX = this.x + (this.facing > 0 ? this.width + 12 : -12);
+          const wandY = this.y + 10;
+          particleSystem.emit({
+            x: wandX + (Math.random() - 0.5) * 26,
+            y: wandY + (Math.random() - 0.5) * 26,
+            count: 2,
+            speed: 60,
+            color: '#e879f9',
+            type: 'spark'
+          });
+        }
+
+        // When 5 seconds of charging finishes: MATERIALIZE 3-SECOND WALL
+        if (this.wallStateTimer >= this.wallChargeDuration) {
+          this.wallState = 'WALL_ACTIVE';
+          this.wallStateTimer = 0;
+
+          if (game) {
+            game.magicalWall = new MagicalWall(this.targetX, this.targetY, this.targetH, mw, this.wallDuration);
+          }
+          if (window.soundManager) soundManager.playWallSpawn();
+
+          // Particle flash along the localized wall bounds
+          if (window.particleSystem) {
+            for (let py = this.targetY; py <= this.targetY + this.targetH; py += 30) {
+              particleSystem.emit({
+                x: this.targetX,
+                y: py,
+                count: 3,
+                speed: 100,
+                color: '#f0abfc',
+                type: 'spark'
+              });
+            }
+          }
+        }
+        break;
+
+      case 'WALL_ACTIVE':
+        // Wall is active for STRICTLY 3.0 SECONDS
+        if (this.wallStateTimer >= this.wallDuration) {
+          this.wallState = 'COOLDOWN';
+          this.wallStateTimer = 0;
+          if (game && game.magicalWall) {
+            game.magicalWall = null;
+          }
+          if (window.soundManager) soundManager.playWallFade();
+        }
+        break;
+    }
+
+    // 4. Physics and Seamless Horizontal Wraparound
     this.vy += this.gravity * dt;
     if (this.vy > 900) this.vy = 900;
 
@@ -642,7 +797,6 @@ class GhostAttractorBot extends BaseBot {
 
     map.resolveEntity(this, dt);
 
-    // Seamless continuous horizontal world wraparound
     if (this.x >= map.width) {
       this.x -= map.width;
       this.prevX -= map.width;
@@ -650,21 +804,93 @@ class GhostAttractorBot extends BaseBot {
       this.x += map.width;
       this.prevX += map.width;
     }
+
+    // Vertical wraparound through open bottom (emerges from top sky)
+    if (this.y > map.height) {
+      this.y = 45;
+      this.prevY = 45;
+      this.grounded = false;
+      this.vy = Math.min(this.vy, 350);
+    }
+  }
+
+  // Draw Warning Outline at Target Jump Route during the 5s Charging Phase
+  drawWarningColumn(ctx) {
+    ctx.save();
+    const chargePct = Math.min(1.0, this.wallStateTimer / this.wallChargeDuration);
+    const pulse = Math.sin(this.animTime * (8 + chargePct * 12)) * 0.2 + 0.8;
+    const alpha = (0.28 + chargePct * 0.58) * pulse;
+
+    const wallW = 32;
+    const left = this.targetX - wallW / 2;
+    const top = this.targetY;
+    const h = this.targetH; // Localized height of ONE jump route
+
+    // 1. Translucent glowing purple warning block
+    ctx.fillStyle = `rgba(168, 85, 247, ${alpha * 0.35})`;
+    ctx.fillRect(left - 8, top, wallW + 16, h);
+
+    // 2. Denser core beam
+    ctx.fillStyle = `rgba(232, 121, 249, ${alpha * 0.7})`;
+    ctx.fillRect(left, top, wallW, h);
+
+    // 3. Dashed luminous warning borders
+    ctx.strokeStyle = `rgba(250, 232, 255, ${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(left, top, wallW, h);
+    ctx.setLineDash([]);
+
+    // 4. Warning symbol & countdown timer
+    const remaining = Math.max(0, this.wallChargeDuration - this.wallStateTimer).toFixed(1);
+    ctx.fillStyle = '#f0abfc';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`⚡ WALL: ${remaining}s`, this.targetX, top - 12);
+
+    // 5. Open Route Guidance Indicators:
+    // Shows user that Route A is targeted, but the other route is completely open!
+    ctx.fillStyle = 'rgba(74, 222, 128, 0.9)';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('▲ BLOCKED JUMP ▲', this.targetX, top + h / 2);
+    ctx.fillText('▼ OPEN ROUTE ▼', this.targetX, top + h + 18);
+
+    ctx.restore();
   }
 
   draw(ctx) {
+    // 1. Draw Charging Warning at targeted jump route during 5s CHARGE phase
+    if (this.wallState === 'CHARGE') {
+      this.drawWarningColumn(ctx);
+    }
+
+    // 2. Draw Ethereal Tether Beam to Ghost
+    if (this.tetherAlpha > 0 && this.targetGhost) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(192, 132, 252, ${this.tetherAlpha * 0.75})`;
+      ctx.lineWidth = 3.5;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.moveTo(this.x + this.width / 2, this.y + this.height / 2);
+      ctx.lineTo(this.targetGhost.x + this.targetGhost.width / 2, this.targetGhost.y + this.targetGhost.height / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
     ctx.save();
     const centerX = this.x + this.width / 2;
     const centerY = this.y + this.height / 2;
 
     ctx.translate(centerX, centerY);
-    ctx.scale(this.facing * 2, 2);
+    ctx.scale(this.facing, 1); // 1.5x scale (matches Player and other bots)
 
     const baseW = 26;
     const baseH = 32;
     const halfW = 13;
     const halfH = 16;
 
+    // Ground shadow
     if (this.grounded) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
       ctx.beginPath();
@@ -695,7 +921,7 @@ class GhostAttractorBot extends BaseBot {
     ctx.ellipse(3 + paw1 * 0.4, halfH - 4 + Math.max(0, paw1), 4, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body (Mystic Violet)
+    // Body (Mystic Violet Cat)
     ctx.fillStyle = '#8b5cf6';
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(-halfW, -halfH + 4, baseW, baseH - 8, 9);
@@ -724,30 +950,162 @@ class GhostAttractorBot extends BaseBot {
     ctx.arc(halfW - 13, -halfH + 11, 2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Floating Crystal Orb
-    const orbFloat = Math.sin(this.animTime * 5) * 4;
+    // ----------------------------------------------------
+    // CLEARLY VISIBLE MAGICAL WAND IN FRONT PAW
+    // ----------------------------------------------------
     ctx.save();
-    ctx.translate(12, -halfH + 12 + orbFloat);
+    const isCharging = this.wallState === 'CHARGE';
+    const wandAngle = isCharging ? -0.85 + Math.sin(this.animTime * 14) * 0.08 : 0.35;
+    ctx.translate(halfW - 2, -halfH + 14);
+    ctx.rotate(wandAngle);
 
-    const orbGrad = ctx.createRadialGradient(0, 0, 1, 0, 0, 6);
-    orbGrad.addColorStop(0, '#f5d0fe');
-    orbGrad.addColorStop(1, '#a855f7');
-    ctx.fillStyle = orbGrad;
+    // Wand shaft (Polished mahogany)
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(0, -2, 18, 4);
+
+    // Gold ferrule band
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(14, -2.5, 3, 5);
+
+    // Glowing Amethyst Crystal Orb on Wand Tip
+    const chargePct = isCharging ? Math.min(1.0, this.wallStateTimer / this.wallChargeDuration) : 0;
+    const gemGlow = isCharging ? (0.65 + 0.35 * Math.sin(this.animTime * 18)) : 0.35;
+    const gemSize = isCharging ? (5 + chargePct * 3.5) : 4.8;
+
+    // Pulsing radial aura
+    const wandGlow = ctx.createRadialGradient(20, 0, 1, 20, 0, gemSize * 2.2);
+    wandGlow.addColorStop(0, `rgba(245, 208, 254, ${gemGlow})`);
+    wandGlow.addColorStop(1, 'rgba(168, 85, 247, 0)');
+    ctx.fillStyle = wandGlow;
     ctx.beginPath();
-    ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+    ctx.arc(20, 0, gemSize * 2.2, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(232, 121, 249, 0.7)';
-    ctx.lineWidth = 1.5;
+    // Amethyst gem
+    ctx.fillStyle = isCharging ? '#ffffff' : '#e879f9';
     ctx.beginPath();
-    ctx.arc(0, 0, 8 + Math.sin(this.animTime * 8) * 2, 0, Math.PI * 2);
+    ctx.arc(20, 0, gemSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(19, -1, gemSize * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore(); // restore wand
+
+    ctx.restore(); // restore bot
+  }
+}
+
+// ----------------------------------------------------
+// MAGICAL WALL (Blocks ONLY ONE Jump Route, Duration: 3.0s)
+// Localized crystalline barrier (w = 32, h = 140..145)
+// Spans only between two platform tiers, leaving alternate routes wide open!
+// ----------------------------------------------------
+class MagicalWall {
+  constructor(x, y, h, mapWidth, duration = 3.0) {
+    this.x = x;
+    this.y = y;        // Top of the targeted jump route
+    this.w = 32;
+    this.h = h || 145; // Localized height of ONE jump route (NOT full screen!)
+    this.mapWidth = mapWidth || 1700;
+    this.duration = duration; // Strictly 3.0 seconds
+    this.timer = 0;
+    this.active = true;
+    this.alpha = 0;
+  }
+
+  update(dt) {
+    this.timer += dt;
+    if (this.timer < 0.2) {
+      this.alpha = this.timer / 0.2;
+    } else if (this.timer > this.duration - 0.3) {
+      this.alpha = Math.max(0, (this.duration - this.timer) / 0.3);
+    } else {
+      this.alpha = 1.0;
+    }
+
+    if (this.timer >= this.duration) {
+      this.active = false;
+    }
+  }
+
+  draw(ctx) {
+    if (!this.active || this.alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = this.alpha;
+
+    const left = this.x - this.w / 2;
+    const top = this.y;
+    const pulse = Math.sin(this.timer * 9) * 0.15 + 0.85;
+
+    // 1. Localized purple glow aura
+    ctx.fillStyle = `rgba(168, 85, 247, ${0.30 * pulse})`;
+    ctx.fillRect(left - 12, top - 4, this.w + 24, this.h + 8);
+
+    // 2. Main crystalline barrier column
+    const grad = ctx.createLinearGradient(left, 0, left + this.w, 0);
+    grad.addColorStop(0, 'rgba(126, 34, 206, 0.88)');
+    grad.addColorStop(0.2, 'rgba(168, 85, 247, 0.95)');
+    grad.addColorStop(0.5, 'rgba(250, 232, 255, 0.98)');
+    grad.addColorStop(0.8, 'rgba(168, 85, 247, 0.95)');
+    grad.addColorStop(1, 'rgba(126, 34, 206, 0.88)');
+    ctx.fillStyle = grad;
+    if (ctx.roundRect) ctx.roundRect(left, top, this.w, this.h, 6);
+    else ctx.fillRect(left, top, this.w, this.h);
+
+    // 3. Luminous neon amethyst border
+    ctx.strokeStyle = `rgba(240, 171, 252, ${0.95 * pulse})`;
+    ctx.lineWidth = 3;
+    if (ctx.roundRect) ctx.roundRect(left, top, this.w, this.h, 6);
+    else ctx.strokeRect(left, top, this.w, this.h);
+
+    // 4. Vertical core energy spine
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(this.x, top + 8);
+    ctx.lineTo(this.x, top + this.h - 8);
     ctx.stroke();
 
-    ctx.restore();
+    // 5. Pulsating runes
+    for (let ry = top + 25; ry < top + this.h - 10; ry += 35) {
+      const runeP = Math.sin(this.timer * 7 + ry * 0.05);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(this.x, ry + runeP * 3, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#f0abfc';
+      ctx.beginPath();
+      ctx.moveTo(this.x - 6, ry + runeP * 3);
+      ctx.lineTo(this.x, ry + runeP * 3 - 6);
+      ctx.lineTo(this.x + 6, ry + runeP * 3);
+      ctx.lineTo(this.x, ry + runeP * 3 + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 6. Top and bottom barrier nodes
+    ctx.fillStyle = '#f5d0fe';
+    ctx.beginPath();
+    ctx.arc(this.x, top + 6, 6, 0, Math.PI * 2);
+    ctx.arc(this.x, top + this.h - 6, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 7. Alternate Route Label (Visible confirmation that other routes are open!)
+    ctx.fillStyle = 'rgba(245, 208, 254, 0.85)';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('▼ OPEN ROUTE ▼', this.x, top + this.h + 16);
+
     ctx.restore();
   }
 }
 
+// Exactly 3 Bots + MagicalWall exported
 window.KnifeChaser = KnifeChaser;
 window.ArcherBot = ArcherBot;
 window.GhostAttractorBot = GhostAttractorBot;
+window.MagicalWall = MagicalWall;

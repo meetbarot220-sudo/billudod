@@ -40,7 +40,7 @@ class ShieldPickup {
     const dist = Math.hypot(dx, dy);
 
     // Player collects shield (cannot stack if player already has shield)
-    if (dist < (this.radius + 32) && !player.isDead && !player.hasShield) {
+    if (dist < (this.radius + 16) && !player.isDead && !player.hasShield) {
       this.active = false;
       player.hasShield = true;
       if (window.soundManager) soundManager.playShieldCollect();

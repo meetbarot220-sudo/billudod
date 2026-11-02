@@ -268,6 +268,79 @@ class SoundManager {
     osc.stop(t + 0.26);
   }
 
+  // --- Purple Wand Bot Magical Sounds ---
+  playMagicCharge() {
+    if (this.isMuted || !this.ctx) return;
+    this.resume();
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(580, t + 0.45);
+
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.22 * this.sfxVolume, t + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.50);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.52);
+  }
+
+  playWallSpawn() {
+    if (this.isMuted || !this.ctx) return;
+    this.resume();
+    const t = this.ctx.currentTime;
+
+    // Resonant crystalline wall impact
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(140, t);
+    osc1.frequency.exponentialRampToValueAtTime(60, t + 0.35);
+
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, t);
+    osc2.frequency.exponentialRampToValueAtTime(440, t + 0.30);
+
+    gain.gain.setValueAtTime(0.35 * this.sfxVolume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc1.start(t);
+    osc2.start(t);
+    osc1.stop(t + 0.40);
+    osc2.stop(t + 0.40);
+  }
+
+  playWallFade() {
+    if (this.isMuted || !this.ctx) return;
+    this.resume();
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, t);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.28);
+
+    gain.gain.setValueAtTime(0.20 * this.sfxVolume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.30);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.32);
+  }
+
   playGhostSound() {
     if (this.isMuted || !this.ctx) return;
     this.resume();
@@ -386,6 +459,31 @@ class SoundManager {
 
       osc.start(startTime);
       osc.stop(startTime + 0.22);
+    });
+  }
+
+  playRoundWin() {
+    if (this.isMuted || !this.ctx) return;
+    this.resume();
+    const t = this.ctx.currentTime;
+    // Festive triumphant fanfare chord: C5 -> E5 -> G5 -> C6 -> E6
+    const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+    freqs.forEach((freq, idx) => {
+      const noteTime = t + idx * 0.075;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, noteTime);
+
+      gain.gain.setValueAtTime(0.28 * this.sfxVolume, noteTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.38);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.40);
     });
   }
 

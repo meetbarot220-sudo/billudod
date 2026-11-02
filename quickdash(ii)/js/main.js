@@ -1,5 +1,10 @@
 /**
  * Main Application Bootstrap & UI Event Wiring
+ * Features:
+ * - 9:16 Mobile Portrait Responsive Viewport & High-DPI Canvas scaling
+ * - Dual Desktop & Ergonomic Mobile Touch Controls
+ * - Immediate Press Any Key (Desktop) / Tap Anywhere (Mobile) Start Trigger
+ * - Guaranteed Resilient Game Loop with Safe Delta-Time & Error Containment
  */
 
 // Canvas roundRect polyfill for older browsers / webviews
@@ -24,7 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const game = new GameController(canvas);
   window.game = game;
 
-  // 1. Responsive Canvas Resizing with High-DPI support
+  // 1. Responsive Canvas Resizing with High-DPI support & 9:16 Portrait Adaptation
   function resizeCanvas() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const width = window.innerWidth;
@@ -36,18 +41,30 @@ window.addEventListener('DOMContentLoaded', () => {
     canvas.style.height = height + 'px';
 
     game.camera.resize(width, height);
+    updateDeviceView();
+  }
+
+  // 2. Touch & Device Detection: ONLY show mobile controls on actual mobile portrait screens
+  function updateDeviceView() {
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const isMobile = (isTouch || window.innerWidth <= 850) && isPortrait;
+
+    inputManager.touchControlsActive = isMobile;
+
+    const touchOverlay = document.getElementById('mobile-controls');
+    if (touchOverlay) {
+      touchOverlay.style.display = (isMobile && game.state === 'PLAYING') ? 'block' : 'none';
+    }
+
+    document.body.classList.toggle('is-mobile-portrait', isMobile);
   }
 
   window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(resizeCanvas, 150);
+  });
   resizeCanvas();
-
-  // 2. Touch detection: ONLY show mobile controls on actual mobile/tablet screens
-  const isMobileScreen = window.innerWidth <= 800 && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
-  inputManager.touchControlsActive = isMobileScreen;
-  const touchOverlay = document.getElementById('mobile-controls');
-  if (touchOverlay) {
-    touchOverlay.style.display = isMobileScreen ? 'block' : 'none';
-  }
 
   // 3. Start Game Trigger: PRESS ANY KEY (Desktop) or TAP ANYWHERE (Mobile)
   const startPromptOverlay = document.getElementById('start-prompt-overlay');
@@ -64,14 +81,13 @@ window.addEventListener('DOMContentLoaded', () => {
     if (startPromptOverlay) {
       startPromptOverlay.style.display = 'none';
     }
+    updateDeviceView();
   }
 
-  // Desktop: ANY keyboard key starts the game immediately without requiring a second key press
+  // Desktop: ANY keyboard key starts the game immediately
   window.addEventListener('keydown', (e) => {
     if (game.state === 'READY') {
       triggerGameStart();
-      // DO NOT stop propagation: the keydown continues to inputManager
-      // so if player pressed 'A', 'D', 'W', or 'Space', the player immediately moves/jumps on frame 1!
     }
   }, { capture: true });
 
@@ -82,44 +98,51 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Prevent mobile browser pull-to-refresh and window scrolling
+  window.addEventListener('touchmove', (e) => {
+    if (e.target.closest('#mobile-controls') || e.target.closest('#game-canvas')) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // HUD & Modal Buttons
   const pauseBtn = document.getElementById('btn-pause-hud');
   const resumeBtn = document.getElementById('btn-resume');
   const restartPauseBtn = document.getElementById('btn-restart-pause');
-  const restartGameOverBtn = document.getElementById('btn-restart-gameover');
+// Result screen has no buttons (clean ending screen)
 
   if (pauseBtn) {
-    pauseBtn.addEventListener('click', () => {
+    pauseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       game.pauseGame();
     });
   }
 
   if (resumeBtn) {
-    resumeBtn.addEventListener('click', () => {
+    resumeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       game.resumeGame();
+      updateDeviceView();
     });
   }
 
   if (restartPauseBtn) {
-    restartPauseBtn.addEventListener('click', () => {
+    restartPauseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       soundManager.playClick();
       game.startRound();
+      updateDeviceView();
     });
   }
 
-  if (restartGameOverBtn) {
-    restartGameOverBtn.addEventListener('click', () => {
-      soundManager.playClick();
-      game.startRound();
-    });
-  }
 
-  // 4. Mobile Touch Button Events
+
+  // 4. Mobile Touch Button Events: LEFT, RIGHT, JUMP, DASH
   const touchButtons = [
     { id: 'touch-left', action: 'left' },
     { id: 'touch-right', action: 'right' },
     { id: 'touch-jump', action: 'jump' },
-    { id: 'touch-dash', action: 'dash' },
-    { id: 'touch-attack', action: 'attack' }
+    { id: 'touch-dash', action: 'dash' }
   ];
 
   touchButtons.forEach(({ id, action }) => {
@@ -128,13 +151,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const startHandler = (e) => {
       e.preventDefault();
-      soundManager.init();
+      e.stopPropagation();
+      if (game.state === 'READY') {
+        triggerGameStart();
+      }
+      try {
+        if (window.soundManager) soundManager.init();
+      } catch (err) {}
       inputManager.setTouchAction(action, true);
       el.classList.add('active');
     };
 
     const endHandler = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       inputManager.setTouchAction(action, false);
       el.classList.remove('active');
     };
@@ -142,6 +172,9 @@ window.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('touchstart', startHandler, { passive: false });
     el.addEventListener('touchend', endHandler, { passive: false });
     el.addEventListener('touchcancel', endHandler, { passive: false });
+    el.addEventListener('pointerdown', startHandler);
+    el.addEventListener('pointerup', endHandler);
+    el.addEventListener('pointercancel', endHandler);
     el.addEventListener('mousedown', startHandler);
     el.addEventListener('mouseup', endHandler);
     el.addEventListener('mouseleave', endHandler);
@@ -158,13 +191,13 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof currentTime !== 'number' || isNaN(currentTime)) {
       currentTime = performance.now();
     }
-    let dt = (currentTime - lastTime) / 1000;
-    if (isNaN(dt) || dt <= 0 || dt > 0.1) {
-      dt = 1 / 60;
-    }
+    const rawDt = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
 
-    // 3. Safe Input & Update Step
+    // Strict delta-time clamping: minimum 0.001s, maximum 0.05s (prevents teleporting or freeze)
+    const dt = Math.max(0.001, Math.min(0.05, isNaN(rawDt) ? 1 / 60 : rawDt));
+
+    // 3. Exception-isolated Game Tick & Render
     try {
       if (window.inputManager) {
         inputManager.update();
@@ -179,7 +212,6 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error('Runtime update error contained:', updateErr);
     }
 
-    // 4. Safe Render Step
     try {
       if (window.game) {
         game.render();
@@ -189,5 +221,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 6. Launch the bulletproof game loop
   requestAnimationFrame(gameLoop);
 });

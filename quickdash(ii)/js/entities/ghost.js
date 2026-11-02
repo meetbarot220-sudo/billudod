@@ -10,9 +10,9 @@ class Ghost {
     this.y = y;
     this.vx = (Math.random() - 0.5) * 60;
     this.vy = (Math.random() - 0.5) * 60;
-    this.radius = 32;
-    this.width = 64;
-    this.height = 72;
+    this.radius = 16;
+    this.width = 32;
+    this.height = 36;
 
     this.baseSpeed = 210;
     this.chaseSpeed = 285;
@@ -83,6 +83,8 @@ class Ghost {
     // Seamless continuous horizontal wraparound
     if (this.x >= map.width) this.x -= map.width;
     else if (this.x < 0) this.x += map.width;
+    if (this.y > map.height) this.y = 45;
+    if (this.y < 35) this.y = 35;
 
     // Vertical boundary clamping (Ceiling & Ground)
     const minY = 42 + this.radius;
@@ -138,10 +140,10 @@ class Ghost {
     if (!this.active) return;
 
     ctx.save();
-    const centerX = this.x + this.width / 2;
+    const centerX = this.x + this.radius;
     const centerY = this.y + this.radius;
 
-    // Pulsing danger warning aura (2× visual radius)
+    // Pulsing danger warning aura
     const auraRadius = this.radius * (this.isAttracted ? 2.2 : 1.6);
     const auraGrad = ctx.createRadialGradient(
       centerX, centerY, this.radius * 0.3,
@@ -161,7 +163,7 @@ class Ghost {
     ctx.arc(centerX, centerY, auraRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Floating Ghost Body (2× size translucent spectral sheet)
+    // Floating Ghost Body (Normal cute translucent spectral sheet)
     const bodyGrad = ctx.createLinearGradient(this.x, this.y, this.x, this.y + this.height);
     if (this.isAttracted) {
       bodyGrad.addColorStop(0, 'rgba(254, 226, 226, 0.95)');
@@ -173,40 +175,40 @@ class Ghost {
 
     ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    ctx.arc(centerX, centerY - 4, this.radius, Math.PI, 0);
+    ctx.arc(centerX, centerY - 2, this.radius, Math.PI, 0);
 
-    // Wavy ghost skirt bottom (scaled waves)
-    const w1 = Math.sin(this.timer * 9) * 7;
-    const w2 = Math.cos(this.timer * 9) * 7;
-    const w3 = Math.sin(this.timer * 9 + 2) * 7;
+    // Wavy ghost skirt bottom
+    const w1 = Math.sin(this.timer * 9) * 4;
+    const w2 = Math.cos(this.timer * 9) * 4;
+    const w3 = Math.sin(this.timer * 9 + 2) * 4;
 
-    ctx.lineTo(this.x + this.width, this.y + this.height - 10 + w1);
-    ctx.quadraticCurveTo(this.x + this.width * 0.75, this.y + this.height + w2, this.x + this.width * 0.5, this.y + this.height - 10);
-    ctx.quadraticCurveTo(this.x + this.width * 0.25, this.y + this.height + w3, this.x, this.y + this.height - 10 + w1);
+    ctx.lineTo(this.x + this.width, this.y + this.height - 6 + w1);
+    ctx.quadraticCurveTo(this.x + this.width * 0.75, this.y + this.height + w2, this.x + this.width * 0.5, this.y + this.height - 6);
+    ctx.quadraticCurveTo(this.x + this.width * 0.25, this.y + this.height + w3, this.x, this.y + this.height - 6 + w1);
     ctx.closePath();
     ctx.fill();
 
-    // Dark Spooky Eyes (2× size)
+    // Dark Spooky Eyes
     ctx.fillStyle = this.isAttracted ? '#dc2626' : '#1e1b4b';
-    const eyeOffsetX = (this.vx > 0 ? 6 : -6);
+    const eyeOffsetX = (this.vx > 0 ? 3 : -3);
     ctx.beginPath();
-    ctx.arc(centerX - 10 + eyeOffsetX, centerY - 6, 6, 0, Math.PI * 2);
-    ctx.arc(centerX + 10 + eyeOffsetX, centerY - 6, 6, 0, Math.PI * 2);
+    ctx.arc(centerX - 5 + eyeOffsetX, centerY - 4, 3, 0, Math.PI * 2);
+    ctx.arc(centerX + 5 + eyeOffsetX, centerY - 4, 3, 0, Math.PI * 2);
     ctx.fill();
 
     // Eye highlights
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(centerX - 8 + eyeOffsetX, centerY - 8, 2, 0, Math.PI * 2);
-    ctx.arc(centerX + 12 + eyeOffsetX, centerY - 8, 2, 0, Math.PI * 2);
+    ctx.arc(centerX - 4 + eyeOffsetX, centerY - 5, 1, 0, Math.PI * 2);
+    ctx.arc(centerX + 6 + eyeOffsetX, centerY - 5, 1, 0, Math.PI * 2);
     ctx.fill();
 
     // Warning marker if attracted
     if (this.isAttracted) {
       ctx.fillStyle = '#ef4444';
-      ctx.font = 'bold 20px sans-serif';
+      ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('!', centerX, this.y - 10);
+      ctx.fillText('!', centerX, this.y - 4);
     }
 
     ctx.restore();

@@ -1,22 +1,20 @@
 /**
- * Camera - Wide Readable 2D Follow Camera with Seamless Horizontal Wraparound
- * Engineered for 16-bit Pixel-Art presentation:
- * - Frames the entire arena height with crisp pixel readability
- * - Smooth exponential follow on player's center
- * - No camera shake (rock-solid readable action)
- * - Seamless modular horizontal looping across map width
+ * Camera - Responsive Follow Camera with 9:16 Mobile Portrait & Landscape Support
+ * Features:
+ * - Frames 9:16 mobile portrait screens perfectly with zero distortion or black borders
+ * - Adapts to 1080x1920, 720x1280, 1080x2160 and modern phone viewports
+ * - Smooth exponential follow on player's center with seamless toroidal horizontal wrapping
+ * - Keeps player, nearby platforms, and enemies completely visible and readable
  */
 class Camera {
   constructor(canvas) {
     this.canvas = canvas;
     this.x = 850;
-    this.y = 440;
+    this.y = 450;
     this.targetX = 850;
-    this.targetY = 440;
+    this.targetY = 450;
 
-    this.lerpSpeed = 0.09;
-    this.baseWidth = 1600;
-    this.baseHeight = 900;
+    this.lerpSpeed = 0.095;
     this.zoom = 1.0;
 
     this.worldBounds = {
@@ -44,24 +42,31 @@ class Camera {
     this.viewportWidth = cssWidth || window.innerWidth;
     this.viewportHeight = cssHeight || window.innerHeight;
 
-    // Wide, clear arena framing: entire vertical arena height is visible comfortably
-    const targetH = 880;
-    const targetW = 1600;
+    const isPortrait = this.viewportWidth < this.viewportHeight;
 
-    const scaleX = this.viewportWidth / targetW;
-    const scaleY = this.viewportHeight / targetH;
+    if (isPortrait) {
+      // 9:16 Mobile Portrait Viewport
+      // Target visible world width of 600px ensures platforms, player, and hazards fit comfortably
+      // Target visible world height of 1066px (exact 9:16) frames ground through upper platforms
+      const targetW = 600;
+      const targetH = 1066;
 
-    let computedZoom = Math.min(scaleX, scaleY);
+      const scaleX = this.viewportWidth / targetW;
+      const scaleY = this.viewportHeight / targetH;
+      let computedZoom = Math.min(scaleX, scaleY);
 
-    if (this.viewportWidth < this.viewportHeight) {
-      // Mobile portrait mode: width is narrower, comfortably show ~900px span
-      computedZoom = Math.max(0.42, Math.min(0.80, this.viewportWidth / 900));
+      // Clamp zoom to safe readable bounds
+      this.zoom = Math.max(0.40, Math.min(1.2, computedZoom));
     } else {
-      // Landscape (Desktop, laptop, tablet, mobile landscape):
-      computedZoom = Math.max(0.55, Math.min(1.15, computedZoom));
-    }
+      // Landscape (Desktop, laptop, tablet):
+      const targetH = 880;
+      const targetW = 1700;
 
-    this.zoom = computedZoom;
+      const scaleX = this.viewportWidth / targetW;
+      const scaleY = this.viewportHeight / targetH;
+      let computedZoom = Math.min(scaleX, scaleY);
+      this.zoom = Math.max(0.55, Math.min(1.15, computedZoom));
+    }
   }
 
   // Smooth follow supporting seamless horizontal world wrapping
@@ -84,25 +89,31 @@ class Camera {
     // Keep camera x continuously normalized within [0, mapW)
     this.x = ((this.x % mapW) + mapW) % mapW;
 
-    // Vertical framing: clamp camera Y so ground and upper platforms stay in view
-    const halfVisibleH = (this.viewportHeight / (this.zoom || 1)) / 2;
-    const minY = this.worldBounds.minY + halfVisibleH;
-    const maxY = this.worldBounds.maxY - halfVisibleH;
+    const isPortrait = this.viewportWidth < this.viewportHeight;
 
-    if (maxY > minY) {
-      const targetY = Math.max(minY, Math.min(maxY, targetCenterY));
-      this.y += (targetY - this.y) * factor;
+    if (isPortrait) {
+      // In 9:16 portrait, visible world height is ~1066px
+      // Ground is at y = 780, platforms go to y = 210
+      // Clamping target Y between 400 and 520 keeps ground visible above touch controls and summit accessible
+      const clampedTargetY = Math.max(400, Math.min(520, targetCenterY));
+      this.y += (clampedTargetY - this.y) * factor;
     } else {
-      // Arena height fits within viewport: center camera vertically on map
-      this.y = (this.worldBounds.minY + this.worldBounds.maxY) / 2;
+      // Vertical framing for landscape: clamp camera Y so ground and upper platforms stay in view
+      const halfVisibleH = (this.viewportHeight / (this.zoom || 1)) / 2;
+      const minY = this.worldBounds.minY + halfVisibleH;
+      const maxY = this.worldBounds.maxY - halfVisibleH;
+
+      if (maxY > minY) {
+        const targetY = Math.max(minY, Math.min(maxY, targetCenterY));
+        this.y += (targetY - this.y) * factor;
+      } else {
+        // Arena height fits within viewport: center camera vertically on map
+        this.y = (this.worldBounds.minY + this.worldBounds.maxY) / 2;
+      }
     }
 
     if (!isFinite(this.x)) this.x = targetCenterX || 850;
-    if (!isFinite(this.y)) this.y = targetCenterY || 440;
-
-    // No camera shake (rock-solid readable action)
-    this.shakeDuration = 0;
-    this.shakeIntensity = 0;
+    if (!isFinite(this.y)) this.y = targetCenterY || 450;
   }
 
   snapTo(target) {
@@ -113,17 +124,21 @@ class Camera {
 
     this.x = ((targetCenterX % mapW) + mapW) % mapW;
 
-    const halfVisibleH = (this.viewportHeight / this.zoom) / 2;
-    const minY = this.worldBounds.minY + halfVisibleH;
-    const maxY = this.worldBounds.maxY - halfVisibleH;
-    if (maxY > minY) {
-      this.y = Math.max(minY, Math.min(maxY, targetCenterY));
+    const isPortrait = this.viewportWidth < this.viewportHeight;
+    if (isPortrait) {
+      this.y = Math.max(400, Math.min(520, targetCenterY));
     } else {
-      this.y = (this.worldBounds.minY + this.worldBounds.maxY) / 2;
+      const halfVisibleH = (this.viewportHeight / this.zoom) / 2;
+      const minY = this.worldBounds.minY + halfVisibleH;
+      const maxY = this.worldBounds.maxY - halfVisibleH;
+      if (maxY > minY) {
+        this.y = Math.max(minY, Math.min(maxY, targetCenterY));
+      } else {
+        this.y = (this.worldBounds.minY + this.worldBounds.maxY) / 2;
+      }
     }
   }
 
-  // Camera shake is disabled for clean pixel-art readability
   shake(intensity = 0, duration = 0) {
     this.shakeDuration = 0;
     this.shakeIntensity = 0;

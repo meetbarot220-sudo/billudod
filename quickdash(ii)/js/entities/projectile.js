@@ -7,8 +7,8 @@ class Arrow {
     this.y = y;
     this.vx = vx;
     this.vy = vy;
-    this.width = 24;
-    this.height = 8;
+    this.width = 16;
+    this.height = 6;
     this.gravity = 260; // Gentle ballistic arc
     this.active = true;
     this.life = 4.0;
@@ -98,7 +98,7 @@ class Arrow {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    ctx.scale(1.8, 1.8);
+    ctx.scale(1, 1);
 
     if (this.stuck) {
       ctx.globalAlpha = Math.max(0, this.life / 0.8);

@@ -46,6 +46,7 @@ class GameController {
     // Shield Item System (Random drops, max 1 active, 1 free hit protection)
     this.shieldPickup = null;
     this.shieldSpawnTimer = 8.0;
+    this.magicalWall = null;
 
     this.initEntities();
     this.camera.snapTo(this.player);
@@ -55,12 +56,14 @@ class GameController {
   initEntities() {
     this.player.reset(this.map.spawnPoints.player.x, this.map.spawnPoints.player.y);
 
-    // Three Unique Bots
+    // Three Unique Bots ONLY: Knife, Archer, Ghost Attractor (with Wall spell ability)
     this.bots = [
       new KnifeChaser(this.map.spawnPoints.knifeChaser.x, this.map.spawnPoints.knifeChaser.y),
       new ArcherBot(this.map.spawnPoints.archer.x, this.map.spawnPoints.archer.y),
       new GhostAttractorBot(this.map.spawnPoints.ghostAttractor.x, this.map.spawnPoints.ghostAttractor.y)
     ];
+
+    this.magicalWall = null;
 
     // Single active spectral hazard ghost (manipulated by Ghost Attractor)
     this.ghosts = [
@@ -126,11 +129,12 @@ class GameController {
     // Enable HUD
     if (this.hudElement) this.hudElement.style.display = 'flex';
 
-    // Show mobile controls on touch devices
+    // Show mobile controls on touch devices in portrait
     if (this.touchControls) {
-      const isMobile = window.innerWidth <= 800 && (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
-      const isTouchEnabled = window.inputManager && window.inputManager.touchControlsActive;
-      this.touchControls.style.display = (isMobile || isTouchEnabled) ? 'block' : 'none';
+      const isPortrait = window.innerHeight > window.innerWidth;
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      const isMobile = (isTouch || window.innerWidth <= 850) && isPortrait;
+      this.touchControls.style.display = isMobile ? 'block' : 'none';
     }
 
     if (window.soundManager) {
@@ -153,51 +157,82 @@ class GameController {
     if (this.state === 'PAUSED') {
       this.state = 'PLAYING';
       if (this.pauseModal) this.pauseModal.style.display = 'none';
+      if (this.touchControls) {
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const isMobile = (isTouch || window.innerWidth <= 850) && isPortrait;
+        this.touchControls.style.display = isMobile ? 'block' : 'none';
+      }
       if (window.soundManager) soundManager.playClick();
     }
   }
 
-  // Round finishes when 60-second timer reaches 0
-  roundComplete() {
-    this.state = 'ROUND_COMPLETE';
-    // Survival score preserved
-    if (this.score > this.highScore) {
-      this.highScore = Math.floor(this.score);
+  // Trigger Victory: Timer reached 0 with score > 0
+  triggerVictory() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'VICTORY';
+
+    // Lock exact final survival score
+    const finalScore = Math.max(0, Math.round(this.score));
+    this.score = finalScore;
+    this.player.score = finalScore;
+    this.roundTimeRemaining = 0;
+
+    // Update High Score if beaten
+    if (finalScore > this.highScore) {
+      this.highScore = finalScore;
       localStorage.setItem('quickdash_highscore', this.highScore.toString());
     }
 
+    // Hide normal gameplay HUD and mobile touch buttons so round is clearly ended
+    if (this.hudElement) this.hudElement.style.display = 'none';
     if (this.touchControls) this.touchControls.style.display = 'none';
 
+    // Populate Result Screen UI
     const resTitle = document.getElementById('result-title');
     const resSubtitle = document.getElementById('result-subtitle');
     const finalTimeEl = document.getElementById('final-survival-time');
     const finalScoreEl = document.getElementById('final-score');
     const finalHighEl = document.getElementById('final-highscore');
-    const finalBotsEl = document.getElementById('final-bots');
 
     if (resTitle) {
-      resTitle.textContent = 'ROUND COMPLETE!';
+      resTitle.textContent = 'YOU WIN!';
       resTitle.style.color = '#22c55e';
     }
-    if (resSubtitle) resSubtitle.textContent = 'Survived the full 60 seconds!';
+    if (resSubtitle) {
+      resSubtitle.textContent = 'Survived the full 60 seconds!';
+      resSubtitle.style.color = '#86efac';
+    }
     if (finalTimeEl) finalTimeEl.textContent = '60s';
-    if (finalScoreEl) finalScoreEl.textContent = Math.floor(this.score).toString();
-    if (finalHighEl) finalHighEl.textContent = this.highScore.toString();
+    if (finalScoreEl) {
+      finalScoreEl.textContent = finalScore.toLocaleString();
+      finalScoreEl.style.color = '#38bdf8';
+    }
+    if (finalHighEl) finalHighEl.textContent = this.highScore.toLocaleString();
 
+    // Show result overlay screen
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
-    if (window.soundManager) soundManager.playRoundWin ? soundManager.playRoundWin() : soundManager.playJump();
+
+    if (window.soundManager && soundManager.playRoundWin) {
+      soundManager.playRoundWin();
+    }
   }
 
-  // Player loses all 3 lives
-  gameOver() {
-    this.state = 'GAMEOVER';
-    if (this.score > this.highScore) {
-      this.highScore = Math.floor(this.score);
-      localStorage.setItem('quickdash_highscore', this.highScore.toString());
-    }
+  // Trigger Game Over: Score reached 0 or all lives lost
+  triggerGameOver() {
+    if (this.state !== 'PLAYING') return;
+    this.state = 'GAME_OVER';
 
+    // Final score locked at 0
+    this.score = 0;
+    this.player.score = 0;
+    this.player.isDead = true;
+
+    // Hide normal gameplay HUD and mobile touch buttons
+    if (this.hudElement) this.hudElement.style.display = 'none';
     if (this.touchControls) this.touchControls.style.display = 'none';
 
+    // Populate Result Screen UI
     const resTitle = document.getElementById('result-title');
     const resSubtitle = document.getElementById('result-subtitle');
     const finalTimeEl = document.getElementById('final-survival-time');
@@ -209,24 +244,27 @@ class GameController {
       resTitle.style.color = '#ef4444';
     }
     if (resSubtitle) {
-
-      if (this.score <= 0) {
-
-        resSubtitle.textContent = 'Survival Score Depleted (0 / 10,000)!';
-
-      } else {
-
-        resSubtitle.textContent = 'All 3 lives lost!';
-
-      }
-
+      resSubtitle.textContent = 'Survival Score Depleted (0 / 10,000)!';
+      resSubtitle.style.color = '#fca5a5';
     }
     if (finalTimeEl) finalTimeEl.textContent = `${Math.floor(this.survivalTime)}s`;
-    if (finalScoreEl) finalScoreEl.textContent = Math.floor(this.score).toString();
-    if (finalHighEl) finalHighEl.textContent = this.highScore.toString();
+    if (finalScoreEl) {
+      finalScoreEl.textContent = '0';
+      finalScoreEl.style.color = '#ef4444';
+    }
+    if (finalHighEl) finalHighEl.textContent = this.highScore.toLocaleString();
 
+    // Show result overlay screen
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
+
+    if (window.soundManager) {
+      soundManager.playPlayerDeath();
+    }
   }
+
+  // Backwards compatibility aliases
+  roundComplete() { this.triggerVictory(); }
+  gameOver() { this.triggerGameOver(); }
 
   update(dt, input) {
     if (input && input.actions && input.actions.pauseJustPressed) {
@@ -244,16 +282,21 @@ class GameController {
 
     if (this.state !== 'PLAYING') return;
 
-    // 1. 60-Second Countdown Timer
+    // 1. Check LOSE Condition IMMEDIATELY: Score reaches 0 or all lives lost
+    if (this.score <= 0 || this.player.score <= 0 || this.player.lives <= 0 || this.player.isDead) {
+      this.triggerGameOver();
+      return;
+    }
+
+    // 2. 60-Second Countdown Timer & Survival Time
     this.roundTimeRemaining -= dt;
     this.survivalTime += dt;
-    // Score only decreases when taking damage
     this.score = this.player.score;
 
+    // Check WIN Condition: Timer reaches 0 with score > 0
     if (this.roundTimeRemaining <= 0) {
       this.roundTimeRemaining = 0;
-      this.updateHUD();
-      this.roundComplete();
+      this.triggerVictory();
       return;
     }
 
@@ -273,6 +316,12 @@ class GameController {
     // 2. Update Player (pass input and map in correct order)
     this.player.update(dt, input, this.map);
 
+    // Re-check LOSE condition right after player updates
+    if (this.player.score <= 0 || this.player.lives <= 0 || this.player.isDead) {
+      this.triggerGameOver();
+      return;
+    }
+
     // 3. Update Bots (Immortal hunters - cannot be damaged or killed)
     for (const bot of this.bots) {
       if (bot instanceof GhostAttractorBot) {
@@ -282,22 +331,61 @@ class GameController {
       }
     }
 
-    // 4. Update Ghosts (smooth movement, contact damage, NO lasers)
+    // 3.5 Update Magical Wall (Temporary 3s obstacle, blocks only 1 jump route)
+    if (this.magicalWall) {
+      this.magicalWall.update(dt);
+      if (!this.magicalWall.active) {
+        this.magicalWall = null;
+      } else {
+        // Resolve solid collision with player
+        const mw = this.map.width;
+        let dx = (this.player.x + this.player.width / 2) - this.magicalWall.x;
+        if (dx > mw / 2) dx -= mw;
+        if (dx < -mw / 2) dx += mw;
+
+        const halfP = this.player.width / 2;
+        const halfW = this.magicalWall.w / 2;
+        const minDist = halfP + halfW;
+
+        const wallTop = this.magicalWall.y;
+        const wallBottom = this.magicalWall.y + this.magicalWall.h;
+        // Localized barrier: Collides ONLY if player is vertically within this single 145px jump route!
+        // If player is on the open route above or below, they pass freely with zero collision!
+        const playerTop = this.player.y;
+        const playerBottom = this.player.y + this.player.height;
+        const isVerticallyInWall = (playerBottom > wallTop) && (playerTop < wallBottom);
+
+        if (Math.abs(dx) < minDist && isVerticallyInWall) {
+          if (dx >= 0) {
+            this.player.x = ((this.magicalWall.x + minDist - halfP) % mw + mw) % mw;
+            if (this.player.vx < 0) this.player.vx = 0;
+          } else {
+            this.player.x = ((this.magicalWall.x - minDist - halfP) % mw + mw) % mw;
+            if (this.player.vx > 0) this.player.vx = 0;
+          }
+          if (this.player.isDashing) {
+            this.player.isDashing = false;
+            if (window.soundManager) soundManager.playShieldBreak();
+            if (window.particleSystem) {
+              particleSystem.createShieldBreakEffect(this.player.x + halfP, this.player.y + this.player.height / 2);
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Update Ghosts (smooth movement, contact damage)
     for (const ghost of this.ghosts) {
       ghost.update(dt, this.player, this.map);
     }
 
-    // 5. Check Player Death (Score <= 0 or all 3 lives lost)
-    if ((this.player.isDead || this.score <= 0 || this.player.lives <= 0) && this.state === 'PLAYING') {
-      this.score = Math.max(0, this.score);
-      this.player.score = this.score;
-      this.state = 'DYING';
-      setTimeout(() => {
-        this.gameOver();
-      }, 700);
+    // Re-check LOSE condition right after bot/ghost interactions
+    if (this.player.score <= 0 || this.player.lives <= 0 || this.player.isDead) {
+      this.triggerGameOver();
+      return;
     }
 
-    // 7. Update HUD
+    // 5. Update HUD during active round
     this.updateHUD();
   }
 
@@ -369,8 +457,8 @@ class GameController {
     const viewLeft = this.camera.x - halfVisibleW;
     const viewRight = this.camera.x + halfVisibleW;
 
-    const minCopy = Math.floor(viewLeft / mapW);
-    const maxCopy = Math.floor(viewRight / mapW);
+    const minCopy = Math.floor(viewLeft / mapW) - 1;
+    const maxCopy = Math.floor(viewRight / mapW) + 1;
 
     // 1. Garden Map & Platforms (continuous repeating world across visible horizontal copies)
     this.map.draw(this.ctx, this.camera, minCopy, maxCopy);
@@ -379,6 +467,11 @@ class GameController {
     for (let k = minCopy; k <= maxCopy; k++) {
       this.ctx.save();
       this.ctx.translate(k * mapW, 0);
+
+      // Magical Wall (active 5-second obstacle barrier)
+      if (this.magicalWall && this.magicalWall.active) {
+        this.magicalWall.draw(this.ctx);
+      }
 
       // Shield Pickup
       if (this.shieldPickup && this.shieldPickup.active) {

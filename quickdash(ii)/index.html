@@ -14,21 +14,39 @@
     <!-- Main Render Canvas -->
     <canvas id="game-canvas"></canvas>
 
-    <!-- TOP HUD: Clean, Responsive, High Readability -->
+    <!-- TOP HUD: Clean, Fully Responsive 9:16 Non-Overlapping Layout -->
     <header id="hud">
-      <!-- Left: Lives, HP Bar & Dash Cooldown -->
-      <div class="hud-panel hud-left-panel">
-        <div id="lives-display" class="lives-group" aria-label="Player Lives">
-          <span class="heart full">♥</span>
-          <span class="heart full">♥</span>
-          <span class="heart full">♥</span>
+      <!-- Top Row: Lives (Left), Score (Center), Time & Pause (Right) -->
+      <div class="hud-top-row">
+        <!-- Top Left: Lives Display (♥ ♥ ♥) -->
+        <div class="hud-panel hud-lives-panel" aria-label="Player Lives">
+          <div id="lives-display" class="lives-group">
+            <span class="heart full">♥</span>
+            <span class="heart full">♥</span>
+            <span class="heart full">♥</span>
+          </div>
         </div>
 
-        <div id="score-display-wrapper" class="score-display-wrapper" aria-label="Survival Score">
-          <span class="score-label">SCORE</span>
-          <span id="score-text" class="score-value">10,000</span>
+        <!-- Top Center: Survival Score (10,000) -->
+        <div class="hud-panel hud-score-panel">
+          <div id="score-display-wrapper" class="score-display-wrapper" aria-label="Survival Score">
+            <span class="score-label">SCORE</span>
+            <span id="score-text" class="score-value">10,000</span>
+          </div>
         </div>
 
+        <!-- Top Right: 60s Countdown Timer & Pause Button -->
+        <div class="hud-panel hud-time-panel">
+          <div class="timer-group">
+            <span class="timer-label">TIME</span>
+            <span id="timer-display" class="timer-value">60</span>
+          </div>
+          <button id="btn-pause-hud" class="btn-icon" aria-label="Pause Game">⏸</button>
+        </div>
+      </div>
+
+      <!-- Sub Row: Dash Meter & Shield Status (Safe Central Sub-Area) -->
+      <div class="hud-sub-row">
         <div id="dash-indicator" class="dash-indicator ready" aria-label="Dash Cooldown">
           <span class="dash-label">⚡ DASH</span>
           <div class="dash-track">
@@ -41,37 +59,41 @@
           <span class="shield-badge">🛡 SHIELD</span>
         </div>
       </div>
-
-      <!-- Center: 60-Second Countdown Timer -->
-      <div class="hud-panel hud-center-panel">
-        <span class="timer-label">TIME</span>
-        <span id="timer-display" class="timer-value">60</span>
-      </div>
-
-      <!-- Right: Minimal Pause -->
-      <div class="hud-right">
-        <button id="btn-pause-hud" class="btn-icon" aria-label="Pause Game">⏸</button>
-      </div>
     </header>
 
-    <!-- MOBILE TOUCH CONTROLS (Ergonomic thumb layout) -->
+    <!-- MOBILE TOUCH CONTROLS (Ergonomic thumb layout for 9:16 portrait) -->
     <div id="mobile-controls">
-      <!-- Movement Left / Right -->
+      <!-- Movement Left / Right (Lower-Left side) -->
       <div class="touch-cluster-left">
-        <button id="touch-left" class="touch-btn" aria-label="Move Left">◀</button>
-        <button id="touch-right" class="touch-btn" aria-label="Move Right">▶</button>
+        <button id="touch-left" class="touch-btn move-btn" aria-label="Move Left">
+          <span class="touch-icon">◀</span>
+          <span class="subtext">LEFT</span>
+        </button>
+        <button id="touch-right" class="touch-btn move-btn" aria-label="Move Right">
+          <span class="touch-icon">▶</span>
+          <span class="subtext">RIGHT</span>
+        </button>
       </div>
 
-      <!-- Action Cluster: Dash (Escape) & Jump (Double-Jump) -->
+      <!-- Action Cluster: Dash & Jump (Lower-Right side) -->
       <div class="touch-cluster-right">
         <button id="touch-dash" class="touch-btn dash-btn" aria-label="Dash (Invulnerable Escape)">
-          ⚡
-          <span class="subtext">Dash</span>
+          <span class="touch-icon">⚡</span>
+          <span class="subtext">DASH</span>
         </button>
         <button id="touch-jump" class="touch-btn jump-btn" aria-label="Jump / Double Jump">
-          ▲
-          <span class="subtext">Jump</span>
+          <span class="touch-icon">▲</span>
+          <span class="subtext">JUMP</span>
         </button>
+      </div>
+    </div>
+
+    <!-- ROTATE DEVICE OVERLAY (Only shown on mobile phones in unsupported landscape) -->
+    <div id="rotate-device-overlay" class="rotate-device-overlay">
+      <div class="rotate-card">
+        <div class="rotate-icon">📱 ↺</div>
+        <h2 class="rotate-title">PLEASE ROTATE YOUR PHONE</h2>
+        <p class="rotate-desc">Quick Dash is designed for 9:16 portrait mode.</p>
       </div>
     </div>
 
@@ -103,9 +125,9 @@
             <span class="label">Time Survived</span>
             <span id="final-survival-time" class="val">0s</span>
           </div>
-          <div class="stat-box">
+          <div class="stat-box featured">
             <span class="label">Final Score</span>
-            <span id="final-score" class="val">0</span>
+            <span id="final-score" class="val score-val">0</span>
           </div>
           <div class="stat-box">
             <span class="label">High Score</span>
@@ -113,9 +135,6 @@
           </div>
         </div>
 
-        <div class="menu-button-group">
-          <button id="btn-restart-gameover" class="btn-arcade primary">🔄 PLAY AGAIN</button>
-        </div>
       </div>
     </div>
   </div>
