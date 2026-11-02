@@ -46,15 +46,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 2. Touch & Device Detection: ONLY show mobile controls on actual mobile portrait screens
   function updateDeviceView() {
-    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     const isPortrait = window.innerHeight > window.innerWidth;
-    const isMobile = (isTouch || window.innerWidth <= 850) && isPortrait;
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isMobile = isPortrait || (isTouch && window.innerWidth <= 900);
 
     inputManager.touchControlsActive = isMobile;
 
     const touchOverlay = document.getElementById('mobile-controls');
     if (touchOverlay) {
-      touchOverlay.style.display = (isMobile && game.state === 'PLAYING') ? 'block' : 'none';
+      const showControls = isMobile && (game.state === 'READY' || game.state === 'PLAYING');
+      touchOverlay.style.display = showControls ? 'block' : 'none';
     }
 
     document.body.classList.toggle('is-mobile-portrait', isMobile);
@@ -149,35 +150,68 @@ window.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (!el) return;
 
+    let isDown = false;
+
     const startHandler = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (isDown) return;
+      isDown = true;
+
+      try {
+        if (e && e.pointerId && el.setPointerCapture) {
+          el.setPointerCapture(e.pointerId);
+        }
+      } catch (err) {}
+
       if (game.state === 'READY') {
         triggerGameStart();
       }
       try {
         if (window.soundManager) soundManager.init();
       } catch (err) {}
+
       inputManager.setTouchAction(action, true);
       el.classList.add('active');
     };
 
     const endHandler = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (!isDown) return;
+      isDown = false;
+
+      try {
+        if (e && e.pointerId && el.releasePointerCapture) {
+          el.releasePointerCapture(e.pointerId);
+        }
+      } catch (err) {}
+
       inputManager.setTouchAction(action, false);
       el.classList.remove('active');
     };
 
+    // Pointer Events with Pointer Capture (resilient multi-touch and holding)
+    el.addEventListener('pointerdown', startHandler, { passive: false });
+    el.addEventListener('pointerup', endHandler, { passive: false });
+    el.addEventListener('pointercancel', endHandler, { passive: false });
+    el.addEventListener('pointerleave', (e) => {
+      if (!el.hasPointerCapture || !el.hasPointerCapture(e.pointerId)) {
+        endHandler(e);
+      }
+    }, { passive: false });
+
+    // Touch events for fallback mobile compatibility
     el.addEventListener('touchstart', startHandler, { passive: false });
     el.addEventListener('touchend', endHandler, { passive: false });
     el.addEventListener('touchcancel', endHandler, { passive: false });
-    el.addEventListener('pointerdown', startHandler);
-    el.addEventListener('pointerup', endHandler);
-    el.addEventListener('pointercancel', endHandler);
-    el.addEventListener('mousedown', startHandler);
-    el.addEventListener('mouseup', endHandler);
-    el.addEventListener('mouseleave', endHandler);
+
+    // Prevent context menu (long press callout)
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
   });
 
   // 5. Guaranteed Resilient Game Loop with Safe Delta-Time & Error Containment

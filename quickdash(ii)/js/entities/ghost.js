@@ -10,9 +10,9 @@ class Ghost {
     this.y = y;
     this.vx = (Math.random() - 0.5) * 60;
     this.vy = (Math.random() - 0.5) * 60;
-    this.radius = 16;
-    this.width = 32;
-    this.height = 36;
+    this.radius = 21; // 1.3x size (scaled from 16)
+    this.width = 42;  // 1.3x size (scaled from 32)
+    this.height = 47; // 1.3x size (scaled from 36)
 
     this.baseSpeed = 210;
     this.chaseSpeed = 285;
@@ -192,8 +192,8 @@ class Ghost {
     ctx.fillStyle = this.isAttracted ? '#dc2626' : '#1e1b4b';
     const eyeOffsetX = (this.vx > 0 ? 3 : -3);
     ctx.beginPath();
-    ctx.arc(centerX - 5 + eyeOffsetX, centerY - 4, 3, 0, Math.PI * 2);
-    ctx.arc(centerX + 5 + eyeOffsetX, centerY - 4, 3, 0, Math.PI * 2);
+    ctx.arc(centerX - 6 + eyeOffsetX, centerY - 4, 3.8, 0, Math.PI * 2);
+    ctx.arc(centerX + 6 + eyeOffsetX, centerY - 4, 3.8, 0, Math.PI * 2);
     ctx.fill();
 
     // Eye highlights

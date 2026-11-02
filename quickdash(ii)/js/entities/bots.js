@@ -14,8 +14,8 @@ class BaseBot {
     this.y = y;
     this.prevX = x;
     this.prevY = y;
-    this.width = 26;
-    this.height = 32;
+    this.width = 34; // 1.3x bot size (scaled from 26)
+    this.height = 42; // 1.3x bot size (scaled from 32)
     this.typeName = typeName;
 
     // Physics
@@ -52,7 +52,7 @@ class KnifeChaser extends BaseBot {
     this.windupDuration = 0.16;
     this.attackDuration = 0.18;
     this.attackCooldown = 0.30;
-    this.attackRange = 46;
+    this.attackRange = 60;
     this.state = 'CHASE';
   }
 
@@ -106,7 +106,7 @@ class KnifeChaser extends BaseBot {
 
       case 'ATTACK':
         // Player cannot be damaged while in DASH state!
-        if (dist < 34 && Math.abs(dy) < 26 && !player.isDashing) {
+        if (dist < 44 && Math.abs(dy) < 34 && !player.isDashing) {
           player.takeDamage(1000, this.x, false);
         }
 
@@ -157,7 +157,7 @@ class KnifeChaser extends BaseBot {
     const centerY = this.y + this.height / 2;
 
     ctx.translate(centerX, centerY);
-    ctx.scale(this.facing, 1);
+    ctx.scale(this.facing * 1.3, 1.3); // 1.3x render scale
 
     const baseW = 26;
     const baseH = 32;
@@ -442,7 +442,7 @@ class ArcherBot extends BaseBot {
     const centerY = this.y + this.height / 2;
 
     ctx.translate(centerX, centerY);
-    ctx.scale(this.facing, 1);
+    ctx.scale(this.facing * 1.3, 1.3); // 1.3x render scale
 
     const baseW = 26;
     const baseH = 32;
@@ -883,7 +883,7 @@ class GhostAttractorBot extends BaseBot {
     const centerY = this.y + this.height / 2;
 
     ctx.translate(centerX, centerY);
-    ctx.scale(this.facing, 1); // 1.5x scale (matches Player and other bots)
+    ctx.scale(this.facing * 1.3, 1.3); // 1.3x render scale
 
     const baseW = 26;
     const baseH = 32;

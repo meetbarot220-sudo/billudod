@@ -133,7 +133,7 @@ class GameController {
     if (this.touchControls) {
       const isPortrait = window.innerHeight > window.innerWidth;
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-      const isMobile = (isTouch || window.innerWidth <= 850) && isPortrait;
+      const isMobile = isPortrait || (isTouch && window.innerWidth <= 900);
       this.touchControls.style.display = isMobile ? 'block' : 'none';
     }
 
@@ -160,7 +160,7 @@ class GameController {
       if (this.touchControls) {
         const isPortrait = window.innerHeight > window.innerWidth;
         const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        const isMobile = (isTouch || window.innerWidth <= 850) && isPortrait;
+        const isMobile = isPortrait || (isTouch && window.innerWidth <= 900);
         this.touchControls.style.display = isMobile ? 'block' : 'none';
       }
       if (window.soundManager) soundManager.playClick();

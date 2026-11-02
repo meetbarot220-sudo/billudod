@@ -103,12 +103,12 @@ class GameMap {
       { x: 850, y: 130 }    // Summit Gazebo apex
     ];
 
-    // Spawn points sized for normal characters (height = 32) on floating platforms
+    // Spawn points sized for 1.3x characters (height = 42) on floating platforms
     this.spawnPoints = {
-      player: { x: 850, y: 603 },             // Centered on main lawn stage (y = 635 - 32)
-      knifeChaser: { x: 220, y: 603 },        // West terrace (y = 635 - 32)
-      archer: { x: 1450, y: 603 },            // East terrace (y = 635 - 32)
-      ghostAttractor: { x: 850, y: 318 },     // High central walkway (y = 350 - 32)
+      player: { x: 850, y: 593 },             // Centered on main lawn stage (y = 635 - 42)
+      knifeChaser: { x: 220, y: 593 },        // West terrace (y = 635 - 42)
+      archer: { x: 1450, y: 593 },            // East terrace (y = 635 - 42)
+      ghostAttractor: { x: 850, y: 308 },     // High central walkway (y = 350 - 42)
       ghost: { x: 1300, y: 200 }              // Upper East perch
     };
   }

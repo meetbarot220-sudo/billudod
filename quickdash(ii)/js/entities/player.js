@@ -10,8 +10,8 @@ class Player {
     this.y = y;
     this.prevX = x;
     this.prevY = y;
-    this.width = 26;
-    this.height = 32;
+    this.width = 34; // 1.3x character size (scaled from 26)
+    this.height = 42; // 1.3x character size (scaled from 32)
 
     // Movement physics
     this.vx = 0;
@@ -486,7 +486,7 @@ class Player {
     if (this.flipAngle > 0) {
       ctx.rotate(this.facing > 0 ? this.flipAngle : -this.flipAngle);
     }
-    ctx.scale(this.facing * this.squashX, this.squashY);
+    ctx.scale(this.facing * this.squashX * 1.3, this.squashY * 1.3); // 1.3x render scale
 
     const baseW = 26;
     const baseH = 32;
