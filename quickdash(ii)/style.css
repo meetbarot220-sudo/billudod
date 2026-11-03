@@ -81,6 +81,11 @@ html, body {
   pointer-events: auto;
 }
 
+.hud-top-spacer {
+  width: 76px;
+  visibility: hidden;
+}
+
 .hud-lives-panel {
   padding: 4px 12px;
 }
@@ -624,7 +629,7 @@ body.is-mobile-portrait #mobile-controls {
 
 .stats-summary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   width: 100%;
   margin: 8px 0;

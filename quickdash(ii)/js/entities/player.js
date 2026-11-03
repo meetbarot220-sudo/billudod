@@ -53,11 +53,9 @@ class Player {
     this.attackCooldownTimer = 0;
     this.attackHitbox = null;
 
-    // Survival Score & Lives (10,000 Score survival system, 3 lives total)
+    // Survival Score (10,000 Score survival system - score is the only survival metric)
     this.maxScore = 10000;
     this.score = 10000;
-    this.maxLives = 3;
-    this.lives = 3;
     this.isInvulnerable = false;
     this.invulnerableTimer = 0;
     this.invulnerableDuration = 1.2;
@@ -85,7 +83,6 @@ class Player {
     this.vy = 0;
     this.maxScore = 10000;
     this.score = 10000;
-    this.lives = 3;
     this.isDead = false;
     this.isInvulnerable = false;
     this.invulnerableTimer = 0;
@@ -127,31 +124,38 @@ class Player {
       } else {
         this.vx = -this.facing * 220;
       }
-      return false; // Absorbed! 0 SCORE lost, 0 lives lost.
+      return false; // Absorbed! 0 SCORE lost.
     }
 
+    // Deduct damage from score for EVERY damaging event (never bypassed)
+    const damageAmount = isGhostContact ? 1000 : (amount || 1000);
+    this.score = Math.max(0, this.score - damageAmount);
+
     if (isGhostContact) {
-      // Ghost Contact: Major life-loss event, removes 1 life and 2,500 score
-      this.lives -= 1;
-      this.score = Math.max(0, this.score - 2500);
+      // Ghost Contact: 1,000 score damage
       this.isInvulnerable = true;
       this.invulnerableTimer = 1.6; // Safe cooldown to prevent multi-hits
     } else {
       // Normal Bot Attack (Knife / Arrow): reduces SCORE
-      this.score = Math.max(0, this.score - amount);
       this.isInvulnerable = true;
       this.invulnerableTimer = 0.9; // i-frame cooldown
     }
 
-    // Check if score depleted or all lives lost -> immediate death
-    if (this.score <= 0 || this.lives <= 0) {
+    // Sync score with Game and HUD
+    if (window.game) {
+      window.game.score = this.score;
+      if (window.game.updateHUD) window.game.updateHUD();
+    }
+
+    // Check if score depleted -> immediate death (score is the sole survival metric)
+    if (this.score <= 0) {
       this.score = 0;
-      if (this.lives <= 0) this.lives = 0;
       this.isDead = true;
       if (window.soundManager) soundManager.playPlayerDeath();
       if (window.particleSystem) {
         particleSystem.createDeathExplosion(this.x + this.width / 2, this.y + this.height / 2, '#38bdf8');
       }
+      if (window.game) window.game.triggerGameOver();
     } else {
       if (window.soundManager) soundManager.playDamage();
       if (window.particleSystem) {
@@ -412,55 +416,24 @@ class Player {
 
     if (this.y < 42) { this.y = 42; this.vy = 0; }
 
-    // Falling below the bottom boundary of the playable map
+    // Falling completely below the bottom boundary of the playable map -> immediate GAME OVER
     if (this.y >= map.height) {
-      // Continue falling straight vertically downward: zero horizontal speed, maintain falling state
+      this.isDead = true;
       this.vx = 0;
-      this.isDashing = false;
       this.grounded = false;
 
-      // Exactly 1 life lost + score penalty per fall (prevent repeated deduction during same fall)
-      if (!this.hasFallenOffMap) {
-        this.hasFallenOffMap = true;
-        this.lives = Math.max(0, this.lives - 1);
-        this.score = Math.max(0, this.score - 1000);
-        this.isInvulnerable = true;
-        this.invulnerableTimer = 1.0;
-
-        if (window.soundManager) soundManager.playDamage();
-        if (window.particleSystem) {
-          particleSystem.createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#ef4444');
-        }
-
-        if (window.game) {
-          window.game.score = this.score;
-          if (window.game.updateHUD) window.game.updateHUD();
-        }
-
-        // Check lose condition if lives or score depleted
-        if (this.lives <= 0 || this.score <= 0) {
-          this.lives = 0;
-          this.score = 0;
-          this.isDead = true;
-          if (window.soundManager) soundManager.playPlayerDeath();
-          if (window.particleSystem) {
-            particleSystem.createDeathExplosion(this.x + this.width / 2, this.y + this.height / 2, '#38bdf8');
-          }
-        }
+      if (window.soundManager) soundManager.playPlayerDeath();
+      if (window.particleSystem) {
+        particleSystem.createDeathExplosion(this.x + this.width / 2, this.y, '#38bdf8');
       }
 
-      // Continue falling straight vertically downward through open bottom and emerge smoothly from sky ceiling
-      if (this.y > map.height + this.height) {
-        this.y = 42;
-        this.prevY = 42;
-        this.grounded = false;
-        this.vy = Math.min(this.vy, 350);
-        this.vx = 0;
+      if (window.game) {
+        window.game.triggerGameOver('Fell out of the playable map!');
       }
+      return;
     }
 
     if (!wasGrounded && this.grounded) {
-      this.hasFallenOffMap = false; // Reset fall flag upon safely landing on a platform
       this.jumpsLeft = 2; // Jump 1 + Double Jump restored upon landing
       this.coyoteTimer = 0.15;
       this.squashX = 1.25;

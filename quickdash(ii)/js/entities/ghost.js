@@ -114,7 +114,7 @@ class Ghost {
   }
 
   checkHitPlayer(player, map) {
-    // IMMUNITY: Player cannot be hit or lose lives during dash!
+    // IMMUNITY: Player cannot be hit or lose score during dash!
     if (player.isDead || player.isInvulnerable || player.isDashing) return;
 
     const mapW = (map && map.width) || this.mapWidth || 1700;
@@ -131,8 +131,8 @@ class Ghost {
     const distanceSq = (distX * distX) + (distY * distY);
 
     if (distanceSq < (this.radius * this.radius)) {
-      // Lethal ghost contact: immediately removes 1 life (bypasses HP)
-      player.takeDamage(0, this.x, true);
+      // Ghost contact: removes 1 life and 1,000 score
+      player.takeDamage(1000, this.x, true);
 
       // Deflect backward
       this.vx = -distX * 8;

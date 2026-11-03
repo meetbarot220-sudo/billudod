@@ -18,14 +18,8 @@
     <header id="hud">
       <!-- Top Row: Lives (Left), Score (Center), Time & Pause (Right) -->
       <div class="hud-top-row">
-        <!-- Top Left: Lives Display (♥ ♥ ♥) -->
-        <div class="hud-panel hud-lives-panel" aria-label="Player Lives">
-          <div id="lives-display" class="lives-group">
-            <span class="heart full">♥</span>
-            <span class="heart full">♥</span>
-            <span class="heart full">♥</span>
-          </div>
-        </div>
+        <!-- Top Left: Spacer to keep Score centered and Time right -->
+        <div class="hud-top-spacer"></div>
 
         <!-- Top Center: Survival Score (10,000) -->
         <div class="hud-panel hud-score-panel">
@@ -119,10 +113,7 @@
             <span class="label">Final Score</span>
             <span id="final-score" class="val score-val">0</span>
           </div>
-          <div class="stat-box">
-            <span class="label">High Score</span>
-            <span id="final-highscore" class="val">0</span>
-          </div>
+
         </div>
 
       </div>

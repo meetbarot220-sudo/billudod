@@ -27,12 +27,11 @@ class GameController {
     // Scoring & Stats
     this.survivalTime = 0;
     this.score = 10000;
-    this.highScore = parseInt(localStorage.getItem('quickdash_highscore') || '0', 10);
     this.botsDefeated = 0;
 
     // UI Cache references
     this.hudElement = document.getElementById('hud');
-    this.livesContainer = document.getElementById('lives-display');
+    this.livesContainer = null;
     this.scoreText = document.getElementById('score-text');
     this.scoreWrapper = document.getElementById('score-display-wrapper');
     this.timerDisplay = document.getElementById('timer-display');
@@ -180,12 +179,6 @@ class GameController {
     this.player.score = finalScore;
     this.roundTimeRemaining = 0;
 
-    // Update High Score if beaten
-    if (finalScore > this.highScore) {
-      this.highScore = finalScore;
-      localStorage.setItem('quickdash_highscore', this.highScore.toString());
-    }
-
     // Hide normal gameplay HUD and mobile touch buttons so round is clearly ended
     if (this.hudElement) this.hudElement.style.display = 'none';
     if (this.touchControls) this.touchControls.style.display = 'none';
@@ -195,7 +188,6 @@ class GameController {
     const resSubtitle = document.getElementById('result-subtitle');
     const finalTimeEl = document.getElementById('final-survival-time');
     const finalScoreEl = document.getElementById('final-score');
-    const finalHighEl = document.getElementById('final-highscore');
 
     if (resTitle) {
       resTitle.textContent = 'YOU WIN!';
@@ -210,7 +202,6 @@ class GameController {
       finalScoreEl.textContent = finalScore.toLocaleString();
       finalScoreEl.style.color = '#38bdf8';
     }
-    if (finalHighEl) finalHighEl.textContent = this.highScore.toLocaleString();
 
     // Show result overlay screen
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
@@ -220,41 +211,44 @@ class GameController {
     }
   }
 
-  // Trigger Game Over: Score reached 0 or all lives lost
-  triggerGameOver() {
+  // Trigger Game Over: Survival Score reached 0
+  triggerGameOver(reasonSubtitle = null) {
     if (this.state !== 'PLAYING') return;
     this.state = 'GAME_OVER';
 
-    // Final score locked at 0
-    this.score = 0;
-    this.player.score = 0;
+    // Score is the sole survival metric; clamp to 0
+    const finalScore = Math.max(0, Math.round(this.player.score));
+    this.score = finalScore;
+    this.player.score = finalScore;
     this.player.isDead = true;
 
     // Hide normal gameplay HUD and mobile touch buttons
     if (this.hudElement) this.hudElement.style.display = 'none';
     if (this.touchControls) this.touchControls.style.display = 'none';
 
-    // Populate Result Screen UI
+    // Populate Result Screen UI (Final Score and Time Survived only)
     const resTitle = document.getElementById('result-title');
     const resSubtitle = document.getElementById('result-subtitle');
     const finalTimeEl = document.getElementById('final-survival-time');
     const finalScoreEl = document.getElementById('final-score');
-    const finalHighEl = document.getElementById('final-highscore');
 
     if (resTitle) {
       resTitle.textContent = 'GAME OVER';
       resTitle.style.color = '#ef4444';
     }
     if (resSubtitle) {
-      resSubtitle.textContent = 'Survival Score Depleted (0 / 10,000)!';
+      if (reasonSubtitle) {
+        resSubtitle.textContent = reasonSubtitle;
+      } else {
+        resSubtitle.textContent = 'Survival Score Depleted (0 / 10,000)!';
+      }
       resSubtitle.style.color = '#fca5a5';
     }
     if (finalTimeEl) finalTimeEl.textContent = `${Math.floor(this.survivalTime)}s`;
     if (finalScoreEl) {
-      finalScoreEl.textContent = '0';
+      finalScoreEl.textContent = finalScore.toLocaleString();
       finalScoreEl.style.color = '#ef4444';
     }
-    if (finalHighEl) finalHighEl.textContent = this.highScore.toLocaleString();
 
     // Show result overlay screen
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'flex';
@@ -276,8 +270,8 @@ class GameController {
 
     if (this.state !== 'PLAYING') return;
 
-    // 1. Check LOSE Condition IMMEDIATELY: Score reaches 0 or all lives lost
-    if (this.score <= 0 || this.player.score <= 0 || this.player.lives <= 0 || this.player.isDead) {
+    // 1. Check LOSE Condition IMMEDIATELY: Score reaches 0
+    if (this.score <= 0 || this.player.score <= 0 || this.player.isDead) {
       this.triggerGameOver();
       return;
     }
@@ -311,7 +305,7 @@ class GameController {
     this.player.update(dt, input, this.map);
 
     // Re-check LOSE condition right after player updates
-    if (this.player.score <= 0 || this.player.lives <= 0 || this.player.isDead) {
+    if (this.player.score <= 0 || this.player.isDead) {
       this.triggerGameOver();
       return;
     }
@@ -407,7 +401,7 @@ class GameController {
     }
 
     // Re-check LOSE condition right after bot/ghost interactions
-    if (this.player.score <= 0 || this.player.lives <= 0 || this.player.isDead) {
+    if (this.player.score <= 0 || this.player.isDead) {
       this.triggerGameOver();
       return;
     }
@@ -417,16 +411,7 @@ class GameController {
   }
 
   updateHUD() {
-    // 1. Lives: ♥ ♥ ♥
-    if (this.livesContainer) {
-      let heartsHtml = '';
-      for (let i = 0; i < this.player.maxLives; i++) {
-        heartsHtml += (i < this.player.lives)
-          ? '<span class="heart full">♥</span>'
-          : '<span class="heart empty">♥</span>';
-      }
-      this.livesContainer.innerHTML = heartsHtml;
-    }
+
 
     // 2. Survival Score Display: 10,000
     if (this.scoreText) {
