@@ -55,18 +55,31 @@ class GameController {
   initEntities() {
     this.player.reset(this.map.spawnPoints.player.x, this.map.spawnPoints.player.y);
 
+    // Generate distinct, randomized, well-distributed enemy spawns far from player
+    const enemySpawns = (this.map && this.map.generateAllEnemySpawns)
+      ? this.map.generateAllEnemySpawns(this.player)
+      : this.map.spawnPoints;
+
+    // Update map spawnPoints with the new safe random coordinates
+    if (this.map && this.map.spawnPoints) {
+      if (enemySpawns.knifeChaser) this.map.spawnPoints.knifeChaser = enemySpawns.knifeChaser;
+      if (enemySpawns.archer) this.map.spawnPoints.archer = enemySpawns.archer;
+      if (enemySpawns.ghostAttractor) this.map.spawnPoints.ghostAttractor = enemySpawns.ghostAttractor;
+      if (enemySpawns.ghost) this.map.spawnPoints.ghost = enemySpawns.ghost;
+    }
+
     // Three Unique Bots ONLY: Knife, Archer, Ghost Attractor (with Wall spell ability)
     this.bots = [
-      new KnifeChaser(this.map.spawnPoints.knifeChaser.x, this.map.spawnPoints.knifeChaser.y),
-      new ArcherBot(this.map.spawnPoints.archer.x, this.map.spawnPoints.archer.y),
-      new GhostAttractorBot(this.map.spawnPoints.ghostAttractor.x, this.map.spawnPoints.ghostAttractor.y)
+      new KnifeChaser(enemySpawns.knifeChaser.x, enemySpawns.knifeChaser.y),
+      new ArcherBot(enemySpawns.archer.x, enemySpawns.archer.y),
+      new GhostAttractorBot(enemySpawns.ghostAttractor.x, enemySpawns.ghostAttractor.y)
     ];
 
     this.magicalWall = null;
 
     // Single active spectral hazard ghost (manipulated by Ghost Attractor)
     this.ghosts = [
-      new Ghost(this.map.spawnPoints.ghost.x, this.map.spawnPoints.ghost.y)
+      new Ghost(enemySpawns.ghost.x, enemySpawns.ghost.y)
     ];
 
     this.shieldPickup = null;
@@ -81,6 +94,13 @@ class GameController {
 
   spawnGhost(x, y) {
     if (this.ghosts.length < 2) {
+      if (x === undefined || y === undefined) {
+        const sp = (this.map && this.map.getSafeGhostSpawn)
+          ? this.map.getSafeGhostSpawn(this.player, this.ghosts)
+          : (this.map && this.map.spawnPoints && this.map.spawnPoints.ghost) || { x: 1380, y: 240 };
+        x = sp.x;
+        y = sp.y;
+      }
       this.ghosts.push(new Ghost(x, y));
     }
   }
@@ -310,9 +330,14 @@ class GameController {
 
       // Safeguard: validate coordinates so bot cannot silently disappear
       if (isNaN(bot.x) || isNaN(bot.y) || !isFinite(bot.x) || !isFinite(bot.y) || bot.y > this.map.height + 50) {
-        const sp = (this.map && this.map.spawnPoints && this.map.spawnPoints[bot.spawnKey]) || { x: 850, y: 593 };
+        const otherBots = this.bots.filter(b => b !== bot);
+        const sp = (this.map && this.map.getSafeBotSpawn)
+          ? this.map.getSafeBotSpawn(this.player, otherBots)
+          : ((this.map && this.map.spawnPoints && this.map.spawnPoints[bot.spawnKey]) || { x: 230, y: 593 });
         bot.x = sp.x;
         bot.y = sp.y;
+        bot.prevX = sp.x;
+        bot.prevY = sp.y;
         bot.vx = 0;
         bot.vy = 0;
         bot.grounded = true;
@@ -371,8 +396,11 @@ class GameController {
       }
 
       if (isNaN(ghost.x) || isNaN(ghost.y) || !isFinite(ghost.x) || !isFinite(ghost.y) || ghost.y > this.map.height) {
-        ghost.x = (this.map && this.map.spawnPoints && this.map.spawnPoints.ghost && this.map.spawnPoints.ghost.x) || 920;
-        ghost.y = (this.map && this.map.spawnPoints && this.map.spawnPoints.ghost && this.map.spawnPoints.ghost.y) || 240;
+        const sp = (this.map && this.map.getSafeGhostSpawn)
+          ? this.map.getSafeGhostSpawn(this.player, this.ghosts.filter(g => g !== ghost))
+          : ((this.map && this.map.spawnPoints && this.map.spawnPoints.ghost) || { x: 1380, y: 240 });
+        ghost.x = sp.x;
+        ghost.y = sp.y;
         ghost.vx = 0;
         ghost.vy = 0;
       }

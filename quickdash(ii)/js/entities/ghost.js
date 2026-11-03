@@ -14,9 +14,9 @@ class Ghost {
     this.width = 42;  // 1.3x size (scaled from 32)
     this.height = 47; // 1.3x size (scaled from 36)
 
-    this.baseSpeed = 320; // -10% ghost speed (355 * 0.90)
-    this.chaseSpeed = 433; // -10% ghost speed (481 * 0.90)
-    this.attractedSpeed = 502; // -10% ghost speed (558 * 0.90)
+    this.baseSpeed = 243; // -5% ghost speed (256 * 0.95)
+    this.chaseSpeed = 329; // -5% ghost speed (346 * 0.95)
+    this.attractedSpeed = 382; // -5% ghost speed (402 * 0.95)
     this.currentSpeed = this.baseSpeed;
 
     this.timer = Math.random() * 10;
@@ -84,7 +84,7 @@ class Ghost {
     if (this.x >= map.width) this.x -= map.width;
     else if (this.x < 0) this.x += map.width;
     if (this.y > map.height || isNaN(this.x) || isNaN(this.y) || !isFinite(this.x) || !isFinite(this.y)) {
-      const sp = (map && map.spawnPoints && map.spawnPoints.ghost) || { x: 920, y: 240 };
+      const sp = (map && map.getSafeGhostSpawn) ? map.getSafeGhostSpawn(player) : ((map && map.spawnPoints && map.spawnPoints.ghost) || { x: 1380, y: 240 });
       this.x = sp.x;
       this.y = sp.y;
       this.vx = 0;

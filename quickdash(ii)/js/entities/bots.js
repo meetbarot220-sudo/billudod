@@ -48,7 +48,7 @@ class BaseBot {
 class KnifeChaser extends BaseBot {
   constructor(x, y) {
     super(x, y, 'Knife Chaser');
-    this.speed = 433; // -20% difficulty (541 * 0.80)
+    this.speed = 411; // -5% bot speed (433 * 0.95)
     this.windupDuration = 0.115; // -20% reaction pressure (0.092 / 0.80)
     this.attackDuration = 0.18;
     this.attackCooldown = 0.221; // -20% attack rate (0.177 / 0.80)
@@ -100,7 +100,7 @@ class KnifeChaser extends BaseBot {
         if (this.stateTimer >= this.windupDuration) {
           this.state = 'ATTACK';
           this.stateTimer = 0;
-          this.vx = this.facing * 595; // -20% lunge speed (744 * 0.80)
+          this.vx = this.facing * 565; // -5% lunge speed (595 * 0.95)
           if (window.soundManager) soundManager.playKnifeAttack();
         }
         break;
@@ -149,7 +149,7 @@ class KnifeChaser extends BaseBot {
       if (this.vy < 0) this.vy = 0;
     }
     if (this.y > map.height || isNaN(this.x) || isNaN(this.y) || !isFinite(this.x) || !isFinite(this.y)) {
-      const sp = (map && map.spawnPoints && map.spawnPoints.knifeChaser) || { x: 640, y: 593 };
+      const sp = (map && map.getSafeBotSpawn) ? map.getSafeBotSpawn(player) : ((map && map.spawnPoints && map.spawnPoints.knifeChaser) || { x: 230, y: 593 });
       this.x = sp.x;
       this.y = sp.y;
       this.prevX = sp.x;
@@ -290,7 +290,7 @@ class KnifeChaser extends BaseBot {
 class ArcherBot extends BaseBot {
   constructor(x, y) {
     super(x, y, 'Archer');
-    this.speed = 338; // -20% difficulty (423 * 0.80)
+    this.speed = 321; // -5% bot speed (338 * 0.95)
     this.minDistance = 200;
     this.maxDistance = 460;
     this.aimDuration = 0.19; // -20% aim reaction (0.15 / 0.80)
@@ -439,7 +439,7 @@ class ArcherBot extends BaseBot {
       if (this.vy < 0) this.vy = 0;
     }
     if (this.y > map.height || isNaN(this.x) || isNaN(this.y) || !isFinite(this.x) || !isFinite(this.y)) {
-      const sp = (map && map.spawnPoints && map.spawnPoints.archer) || { x: 1040, y: 593 };
+      const sp = (map && map.getSafeBotSpawn) ? map.getSafeBotSpawn(player) : ((map && map.spawnPoints && map.spawnPoints.archer) || { x: 1470, y: 593 });
       this.x = sp.x;
       this.y = sp.y;
       this.prevX = sp.x;
@@ -589,7 +589,7 @@ class ArcherBot extends BaseBot {
 class GhostAttractorBot extends BaseBot {
   constructor(x, y) {
     super(x, y, 'Ghost Attractor');
-    this.speed = 305; // -20% difficulty (381 * 0.80)
+    this.speed = 290; // -5% bot speed (305 * 0.95)
 
     // AI Waypoint navigation
     this.currentWaypointIndex = 0;
@@ -603,7 +603,7 @@ class GhostAttractorBot extends BaseBot {
     // Wall Attack Cycle: Direct Placement (NO Warning) -> 8s ACTIVE -> COOLDOWN
     this.wallState = 'COOLDOWN';
     this.wallDuration = 8.0;         // STRICTLY 8.0s wall active duration (+5.0s increase)
-    this.wallCooldownDuration = 2.60; // -20% wall frequency (2.08 / 0.80)
+    this.wallCooldownDuration = 3.0; // Wall cooldown = 3 seconds
     this.wallStateTimer = 1.0;
     this.chargeSoundTimer = 0;
 
@@ -694,7 +694,7 @@ class GhostAttractorBot extends BaseBot {
       case 'COOLDOWN':
         if (this.wallStateTimer >= this.wallCooldownDuration) {
           // Direct wall appearance with ZERO warning preview
-          this.lockTargetPosition(player, mw);
+          this.lockTargetPosition(player, map);
           this.wallState = 'WALL_ACTIVE';
           this.wallStateTimer = 0;
 
@@ -756,7 +756,7 @@ class GhostAttractorBot extends BaseBot {
       if (this.vy < 0) this.vy = 0;
     }
     if (this.y > map.height || isNaN(this.x) || isNaN(this.y) || !isFinite(this.x) || !isFinite(this.y)) {
-      const sp = (map && map.spawnPoints && map.spawnPoints.ghostAttractor) || { x: 850, y: 308 };
+      const sp = (map && map.getSafeBotSpawn) ? map.getSafeBotSpawn(player) : ((map && map.spawnPoints && map.spawnPoints.ghostAttractor) || { x: 280, y: 308 });
       this.x = sp.x;
       this.y = sp.y;
       this.prevX = sp.x;
@@ -767,33 +767,85 @@ class GhostAttractorBot extends BaseBot {
     }
   }
 
-  // Lock target jump route geometry at the start of the 1-second warning
-  lockTargetPosition(player, mw) {
+  // Spawn next wall in front of the player on a valid platform
+  lockTargetPosition(player, map) {
     if (!player) return;
-    const moveDir = (player.vx !== 0 ? Math.sign(player.vx) : player.facing);
-    let proposedX = player.x + (player.width / 2) + moveDir * 170;
-    this.targetX = ((proposedX % mw) + mw) % mw;
+    const mw = (map && map.width) || (window.game && window.game.map && window.game.map.width) || 1700;
+    const pCenterX = player.x + player.width / 2;
+    const pFeetY = player.y + player.height;
 
-    // Never spawn directly on player: ensure at least 110px distance
-    let distFromPlayer = Math.abs(this.targetX - (player.x + player.width / 2));
-    if (distFromPlayer < 110) {
-      this.targetX = (((player.x + player.width / 2 + moveDir * 150) % mw) + mw) % mw;
+    // Direction the player is moving or facing: strictly ahead in front
+    const facingDir = (Math.abs(player.vx) > 15) ? Math.sign(player.vx) : (player.facing || 1);
+
+    // Initial desired distance ahead: 160px ahead of player center
+    let aheadX = ((pCenterX + facingDir * 160) % mw + mw) % mw;
+
+    // Find all valid walkable floating platforms on the map
+    const platforms = (map && map.platforms)
+      ? map.platforms.filter(p => p.type !== 'solid')
+      : [];
+
+    let bestPlatform = null;
+    let minScore = Infinity;
+
+    for (const p of platforms) {
+      const dy = Math.abs(pFeetY - p.y);
+      if (dy > 120) continue; // Only consider platforms on or near player's current vertical tier
+
+      const pLeft = p.x;
+      const pRight = p.x + p.w;
+
+      // Platform directly contains aheadX with safety margin from edges
+      if (aheadX >= pLeft + 16 && aheadX <= pRight - 16) {
+        const score = dy;
+        if (score < minScore) {
+          minScore = score;
+          bestPlatform = { platform: p, wallX: aheadX, groundY: p.y };
+        }
+      } else {
+        // Clamp wallX onto platform's valid span ahead of player
+        let clampedX = Math.max(pLeft + 20, Math.min(pRight - 20, aheadX));
+        let distFromP = (clampedX - pCenterX) * facingDir;
+        if (distFromP > mw / 2) distFromP -= mw;
+        if (distFromP < -mw / 2) distFromP += mw;
+
+        if (distFromP >= 110) {
+          const score = dy * 2 + Math.abs(clampedX - aheadX);
+          if (score < minScore) {
+            minScore = score;
+            bestPlatform = { platform: p, wallX: clampedX, groundY: p.y };
+          }
+        }
+      }
     }
 
-    // Localized height h = 145px blocks ONLY ONE jump route, leaving the other open!
-    if (player.y >= 610) {
-      this.targetY = 635;
-      this.targetH = 145;
-    } else if (player.y >= 460) {
-      this.targetY = 490;
-      this.targetH = 145;
-    } else if (player.y >= 320) {
-      this.targetY = 350;
-      this.targetH = 140;
+    let finalX, groundY;
+    if (bestPlatform) {
+      finalX = bestPlatform.wallX;
+      groundY = bestPlatform.groundY;
     } else {
-      this.targetY = 210;
-      this.targetH = 140;
+      finalX = aheadX;
+      if (pFeetY >= 560) groundY = 635;
+      else if (pFeetY >= 420) groundY = 490;
+      else if (pFeetY >= 280) groundY = 350;
+      else groundY = 210;
     }
+
+    // Never spawn directly inside or behind player: ensure at least 110px forward separation
+    let dFromPlayer = (finalX - pCenterX) * facingDir;
+    if (dFromPlayer > mw / 2) dFromPlayer -= mw;
+    if (dFromPlayer < -mw / 2) dFromPlayer += mw;
+
+    if (dFromPlayer < 110) {
+      finalX = ((pCenterX + facingDir * 140) % mw + mw) % mw;
+    }
+
+    // Set wall dimensions: seated firmly on the platform surface
+    // Wall height h = 140px blocks ONLY the intended jump route, leaving open routes above!
+    const wallH = 140;
+    this.targetX = finalX;
+    this.targetY = groundY - wallH; // Wall top
+    this.targetH = wallH + 8;       // Extends 8px into platform surface for seamless collision
     this.targetLocked = true;
   }
 
@@ -1032,10 +1084,10 @@ class MagicalWall {
     ctx.fill();
 
     // 7. Alternate Route Label (Visible confirmation that other routes are open!)
-    ctx.fillStyle = 'rgba(245, 208, 254, 0.85)';
+    ctx.fillStyle = 'rgba(245, 208, 254, 0.9)';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('▼ OPEN ROUTE ▼', this.x, top + this.h + 16);
+    ctx.fillText('▲ JUMP OVER ▲', this.x, top - 8);
 
     ctx.restore();
   }

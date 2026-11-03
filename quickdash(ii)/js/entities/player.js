@@ -40,6 +40,7 @@ class Player {
     this.dashCooldownTimer = 0;
     this.dashDirection = 1;
     this.wrappedThisFrame = false;
+    this.hasFallenOffMap = false;
 
     // Shield state (Protects from exactly ONE damaging hit)
     this.hasShield = false;
@@ -98,6 +99,7 @@ class Player {
     this.afterImages = [];
     this.wrappedThisFrame = false;
     this.hasShield = false;
+    this.hasFallenOffMap = false;
   }
 
   takeDamage(amount = 1000, fromSourceX = null, isGhostContact = false) {
@@ -409,15 +411,56 @@ class Player {
     }
 
     if (this.y < 42) { this.y = 42; this.vy = 0; }
-    // Vertical wraparound through open bottom (emerge smoothly from top sky ceiling)
-    if (this.y > map.height) {
-      this.y = 45;
-      this.prevY = 45;
+
+    // Falling below the bottom boundary of the playable map
+    if (this.y >= map.height) {
+      // Continue falling straight vertically downward: zero horizontal speed, maintain falling state
+      this.vx = 0;
+      this.isDashing = false;
       this.grounded = false;
-      this.vy = Math.min(this.vy, 350);
+
+      // Exactly 1 life lost + score penalty per fall (prevent repeated deduction during same fall)
+      if (!this.hasFallenOffMap) {
+        this.hasFallenOffMap = true;
+        this.lives = Math.max(0, this.lives - 1);
+        this.score = Math.max(0, this.score - 1000);
+        this.isInvulnerable = true;
+        this.invulnerableTimer = 1.0;
+
+        if (window.soundManager) soundManager.playDamage();
+        if (window.particleSystem) {
+          particleSystem.createHitSparks(this.x + this.width / 2, this.y + this.height / 2, '#ef4444');
+        }
+
+        if (window.game) {
+          window.game.score = this.score;
+          if (window.game.updateHUD) window.game.updateHUD();
+        }
+
+        // Check lose condition if lives or score depleted
+        if (this.lives <= 0 || this.score <= 0) {
+          this.lives = 0;
+          this.score = 0;
+          this.isDead = true;
+          if (window.soundManager) soundManager.playPlayerDeath();
+          if (window.particleSystem) {
+            particleSystem.createDeathExplosion(this.x + this.width / 2, this.y + this.height / 2, '#38bdf8');
+          }
+        }
+      }
+
+      // Continue falling straight vertically downward through open bottom and emerge smoothly from sky ceiling
+      if (this.y > map.height + this.height) {
+        this.y = 42;
+        this.prevY = 42;
+        this.grounded = false;
+        this.vy = Math.min(this.vy, 350);
+        this.vx = 0;
+      }
     }
 
     if (!wasGrounded && this.grounded) {
+      this.hasFallenOffMap = false; // Reset fall flag upon safely landing on a platform
       this.jumpsLeft = 2; // Jump 1 + Double Jump restored upon landing
       this.coyoteTimer = 0.15;
       this.squashX = 1.25;

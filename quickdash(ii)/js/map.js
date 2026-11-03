@@ -105,13 +105,220 @@ class GameMap {
 
     // Spawn points sized for 1.3x characters (height = 42) on floating platforms
     // All bots spawn in clear visible range of the player and camera on valid platforms
+    // Dedicated platform spawn zones for ground bots (1.3x bot height = 42)
+    // All zones are positioned far from the player's central starting area (player: x=850, y=593)
+    this.botPlatformZones = [
+      // 1. Far West Lower Terrace (x: 60..400, y: 635)
+      { id: 'west_lower', region: 'west', tier: 'lower', xMin: 90, xMax: 370, y: 593 },
+      // 2. Far East Lower Terrace (x: 1300..1640, y: 635)
+      { id: 'east_lower', region: 'east', tier: 'lower', xMin: 1330, xMax: 1610, y: 593 },
+      // 3. West Mid Stepping Bridge (x: 220..500, y: 490)
+      { id: 'west_mid', region: 'west', tier: 'mid', xMin: 250, xMax: 470, y: 448 },
+      // 4. East Mid Stepping Bridge (x: 1200..1480, y: 490)
+      { id: 'east_mid', region: 'east', tier: 'mid', xMin: 1230, xMax: 1450, y: 448 },
+      // 5. West High Arbor (x: 80..420, y: 350)
+      { id: 'west_high', region: 'west', tier: 'high', xMin: 110, xMax: 390, y: 308 },
+      // 6. East High Arbor (x: 1280..1620, y: 350)
+      { id: 'east_high', region: 'east', tier: 'high', xMin: 1310, xMax: 1590, y: 308 },
+      // 7. West Summit Lookout (x: 260..480, y: 210)
+      { id: 'west_summit', region: 'west', tier: 'summit', xMin: 280, xMax: 460, y: 168 },
+      // 8. East Summit Lookout (x: 1220..1440, y: 210)
+      { id: 'east_summit', region: 'east', tier: 'summit', xMin: 1240, xMax: 1420, y: 168 },
+      // 9. West Outer Edge Bridge (x: 0..120, y: 490)
+      { id: 'west_edge', region: 'west', tier: 'edge', xMin: 20, xMax: 100, y: 448 },
+      // 10. East Outer Edge Bridge (x: 1580..1700, y: 490)
+      { id: 'east_edge', region: 'east', tier: 'edge', xMin: 1600, xMax: 1680, y: 448 }
+    ];
+
+    // Dedicated air spawn zones for flying ghost (far away from central lawn stage)
+    this.ghostAirZones = [
+      { id: 'west_mid_sky', region: 'west', xMin: 120, xMax: 420, yMin: 230, yMax: 370 },
+      { id: 'east_mid_sky', region: 'east', xMin: 1280, xMax: 1580, yMin: 230, yMax: 370 },
+      { id: 'west_high_sky', region: 'west', xMin: 160, xMax: 440, yMin: 120, yMax: 200 },
+      { id: 'east_high_sky', region: 'east', xMin: 1260, xMax: 1520, yMin: 120, yMax: 200 },
+      { id: 'west_edge_sky', region: 'west', xMin: 30, xMax: 110, yMin: 180, yMax: 380 },
+      { id: 'east_edge_sky', region: 'east', xMin: 1590, xMax: 1670, yMin: 180, yMax: 380 }
+    ];
+
+    // Default safe initial spawn points (noticeably far away from player: x=850, y=593)
     this.spawnPoints = {
       player: { x: 850, y: 593 },             // Centered on main lawn stage (y = 635 - 42)
-      knifeChaser: { x: 640, y: 593 },        // Main lawn stage left (close, visible, y = 635 - 42)
-      archer: { x: 1040, y: 593 },            // Main lawn stage right (close, visible, y = 635 - 42)
-      ghostAttractor: { x: 850, y: 308 },     // High central walkway (close, visible, y = 350 - 42)
-      ghost: { x: 920, y: 240 }              // Upper center area, near gazebo (close, visible)
+      knifeChaser: { x: 230, y: 593 },        // Far West lower terrace (620px away)
+      archer: { x: 1470, y: 593 },            // Far East lower terrace (620px away)
+      ghostAttractor: { x: 280, y: 308 },     // Far West high arbor (570px away, y = 350 - 42)
+      ghost: { x: 1380, y: 240 }              // Far East sky (530px away)
     };
+  }
+
+  // Toroidal distance calculation accounting for 1,700px horizontal wraparound
+  getToroidalDistance(x1, y1, x2, y2) {
+    let dx = Math.abs(x1 - x2);
+    if (dx > this.width / 2) dx = this.width - dx;
+    const dy = y1 - y2;
+    return Math.hypot(dx, dy);
+  }
+
+  getToroidalDx(x1, x2) {
+    let dx = Math.abs(x1 - x2);
+    if (dx > this.width / 2) dx = this.width - dx;
+    return dx;
+  }
+
+  // Get a safe platform spawn position for a ground bot that is far from player and other entities
+  getSafeBotSpawn(player, otherEntities = [], minPlayerDist = 380, minOtherDist = 200) {
+    const px = player ? (player.x + (player.width ? player.width / 2 : 18)) : 850;
+    const py = player ? (player.y + (player.height ? player.height / 2 : 21)) : 593;
+
+    const existingPoints = (Array.isArray(otherEntities) ? otherEntities : [])
+      .filter(e => e && typeof e.x === 'number' && typeof e.y === 'number')
+      .map(e => ({
+        x: e.x + (e.width ? e.width / 2 : 18),
+        y: e.y + (e.height ? e.height / 2 : 21)
+      }));
+
+    // Filter zones to those with adequate toroidal horizontal distance and overall distance from player
+    const validZones = this.botPlatformZones.filter(zone => {
+      const zoneMidX = (zone.xMin + zone.xMax) / 2;
+      const dx = this.getToroidalDx(zoneMidX, px);
+      const dist = this.getToroidalDistance(zoneMidX, zone.y, px, py);
+      return dx >= 280 && dist >= (minPlayerDist * 0.85);
+    });
+
+    const pool = validZones.length > 0 ? validZones : this.botPlatformZones;
+    const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+
+    let bestChoice = null;
+    let maxDistScore = -1;
+
+    for (const zone of shuffled) {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const testX = Math.round(zone.xMin + Math.random() * (zone.xMax - zone.xMin));
+        const testY = zone.y;
+
+        const pDist = this.getToroidalDistance(testX, testY, px, py);
+        const pDx = this.getToroidalDx(testX, px);
+
+        if (pDx < 280 || pDist < minPlayerDist) continue;
+
+        let minEntDist = Infinity;
+        for (const ep of existingPoints) {
+          const d = this.getToroidalDistance(testX, testY, ep.x, ep.y);
+          if (d < minEntDist) minEntDist = d;
+        }
+
+        if (existingPoints.length === 0 || minEntDist >= minOtherDist) {
+          return { x: testX, y: testY };
+        }
+
+        const score = pDist + minEntDist;
+        if (score > maxDistScore) {
+          maxDistScore = score;
+          bestChoice = { x: testX, y: testY };
+        }
+      }
+    }
+
+    if (bestChoice) return bestChoice;
+
+    return Math.random() < 0.5
+      ? { x: 230 + Math.floor(Math.random() * 80), y: 593 }
+      : { x: 1370 + Math.floor(Math.random() * 80), y: 593 };
+  }
+
+  // Get a safe aerial spawn position for the flying ghost that is far from player and other entities
+  getSafeGhostSpawn(player, otherEntities = [], minPlayerDist = 400, minOtherDist = 200) {
+    const px = player ? (player.x + (player.width ? player.width / 2 : 18)) : 850;
+    const py = player ? (player.y + (player.height ? player.height / 2 : 21)) : 593;
+
+    const existingPoints = (Array.isArray(otherEntities) ? otherEntities : [])
+      .filter(e => e && typeof e.x === 'number' && typeof e.y === 'number')
+      .map(e => ({
+        x: e.x + (e.width ? e.width / 2 : 18),
+        y: e.y + (e.height ? e.height / 2 : 21)
+      }));
+
+    const shuffled = this.ghostAirZones.slice().sort(() => Math.random() - 0.5);
+
+    let bestChoice = null;
+    let maxDistScore = -1;
+
+    for (const zone of shuffled) {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const testX = Math.round(zone.xMin + Math.random() * (zone.xMax - zone.xMin));
+        const testY = Math.round(zone.yMin + Math.random() * (zone.yMax - zone.yMin));
+
+        const pDist = this.getToroidalDistance(testX, testY, px, py);
+        const pDx = this.getToroidalDx(testX, px);
+
+        if (pDx < 280 || pDist < minPlayerDist) continue;
+
+        let minEntDist = Infinity;
+        for (const ep of existingPoints) {
+          const d = this.getToroidalDistance(testX, testY, ep.x, ep.y);
+          if (d < minEntDist) minEntDist = d;
+        }
+
+        if (existingPoints.length === 0 || minEntDist >= minOtherDist) {
+          return { x: testX, y: testY };
+        }
+
+        const score = pDist + minEntDist;
+        if (score > maxDistScore) {
+          maxDistScore = score;
+          bestChoice = { x: testX, y: testY };
+        }
+      }
+    }
+
+    if (bestChoice) return bestChoice;
+
+    return Math.random() < 0.5
+      ? { x: 220 + Math.floor(Math.random() * 80), y: 260 }
+      : { x: 1400 + Math.floor(Math.random() * 80), y: 260 };
+  }
+
+  // Generate distinct, randomized, well-distributed spawn locations for all 4 enemies
+  generateAllEnemySpawns(player) {
+    const px = player ? (player.x + (player.width ? player.width / 2 : 18)) : 850;
+    const py = player ? (player.y + (player.height ? player.height / 2 : 21)) : 593;
+
+    // Distinct region categories to ensure maximum spatial spread
+    const westZones = this.botPlatformZones.filter(z => z.region === 'west' && z.tier !== 'summit' && z.tier !== 'edge');
+    const eastZones = this.botPlatformZones.filter(z => z.region === 'east' && z.tier !== 'summit' && z.tier !== 'edge');
+
+    const botKeys = ['knifeChaser', 'archer', 'ghostAttractor'];
+    const shuffledKeys = botKeys.slice().sort(() => Math.random() - 0.5);
+
+    const chosenSpawns = [];
+    const spawns = {};
+
+    // 1. One bot in West Lower/Mid/High platform (x: 60..500)
+    const pickWest = westZones[Math.floor(Math.random() * westZones.length)];
+    const ptWest = {
+      x: Math.round(pickWest.xMin + Math.random() * (pickWest.xMax - pickWest.xMin)),
+      y: pickWest.y
+    };
+    spawns[shuffledKeys[0]] = ptWest;
+    chosenSpawns.push(ptWest);
+
+    // 2. One bot in East Lower/Mid/High platform (x: 1200..1640)
+    const pickEast = eastZones[Math.floor(Math.random() * eastZones.length)];
+    const ptEast = {
+      x: Math.round(pickEast.xMin + Math.random() * (pickEast.xMax - pickEast.xMin)),
+      y: pickEast.y
+    };
+    spawns[shuffledKeys[1]] = ptEast;
+    chosenSpawns.push(ptEast);
+
+    // 3. One bot in Summit Lookout or Outer Edge Bridge (well separated from the first two)
+    const ptThird = this.getSafeBotSpawn(player, chosenSpawns, 380, 220);
+    spawns[shuffledKeys[2]] = ptThird;
+    chosenSpawns.push(ptThird);
+
+    // 4. Ghost in safe air zone far from player and all 3 ground bots
+    spawns.ghost = this.getSafeGhostSpawn(player, chosenSpawns, 400, 240);
+
+    return spawns;
   }
 
   initDecorations() {
