@@ -104,12 +104,13 @@ class GameMap {
     ];
 
     // Spawn points sized for 1.3x characters (height = 42) on floating platforms
+    // All bots spawn in clear visible range of the player and camera on valid platforms
     this.spawnPoints = {
       player: { x: 850, y: 593 },             // Centered on main lawn stage (y = 635 - 42)
-      knifeChaser: { x: 220, y: 593 },        // West terrace (y = 635 - 42)
-      archer: { x: 1450, y: 593 },            // East terrace (y = 635 - 42)
-      ghostAttractor: { x: 850, y: 308 },     // High central walkway (y = 350 - 42)
-      ghost: { x: 1300, y: 200 }              // Upper East perch
+      knifeChaser: { x: 640, y: 593 },        // Main lawn stage left (close, visible, y = 635 - 42)
+      archer: { x: 1040, y: 593 },            // Main lawn stage right (close, visible, y = 635 - 42)
+      ghostAttractor: { x: 850, y: 308 },     // High central walkway (close, visible, y = 350 - 42)
+      ghost: { x: 920, y: 240 }              // Upper center area, near gazebo (close, visible)
     };
   }
 

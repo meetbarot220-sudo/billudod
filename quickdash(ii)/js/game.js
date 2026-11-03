@@ -40,7 +40,6 @@ class GameController {
 
     this.startPromptOverlay = document.getElementById('start-prompt-overlay');
     this.gameOverScreen = document.getElementById('game-over-screen');
-    this.pauseModal = document.getElementById('pause-modal');
     this.touchControls = document.getElementById('mobile-controls');
 
     // Shield Item System (Random drops, max 1 active, 1 free hit protection)
@@ -124,7 +123,6 @@ class GameController {
 
     if (this.startPromptOverlay) this.startPromptOverlay.style.display = 'none';
     if (this.gameOverScreen) this.gameOverScreen.style.display = 'none';
-    if (this.pauseModal) this.pauseModal.style.display = 'none';
 
     // Enable HUD
     if (this.hudElement) this.hudElement.style.display = 'flex';
@@ -149,28 +147,8 @@ class GameController {
     this.updateHUD();
   }
 
-  pauseGame() {
-    if (this.state === 'PLAYING') {
-      this.state = 'PAUSED';
-      if (this.pauseModal) this.pauseModal.style.display = 'flex';
-      if (window.soundManager) soundManager.playClick();
-    }
-  }
-
-  resumeGame() {
-    if (this.state === 'PAUSED') {
-      this.state = 'PLAYING';
-      if (this.pauseModal) this.pauseModal.style.display = 'none';
-      if (this.touchControls) {
-        const isPortrait = window.innerHeight > window.innerWidth;
-        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        const isMobile = isPortrait || (isTouch && window.innerWidth <= 900);
-        this.touchControls.style.display = isMobile ? 'block' : 'none';
-      }
-      if (window.soundManager) soundManager.playClick();
-    }
-  }
-
+  pauseGame() { /* Pause menu removed */ }
+  resumeGame() { /* Pause menu removed */ }
   // Trigger Victory: Timer reached 0 with score > 0
   triggerVictory() {
     if (this.state !== 'PLAYING') return;
@@ -271,14 +249,6 @@ class GameController {
   gameOver() { this.triggerGameOver(); }
 
   update(dt, input) {
-    if (input && input.actions && input.actions.pauseJustPressed) {
-      if (this.state === 'PLAYING') {
-        this.pauseGame();
-      } else if (this.state === 'PAUSED') {
-        this.resumeGame();
-      }
-    }
-
     // Always update ambient map & particle visuals so background never freezes
     if (this.map) this.map.update(dt);
     if (this.particleSystem) this.particleSystem.update(dt);
@@ -328,10 +298,24 @@ class GameController {
 
     // 3. Update Bots (Immortal hunters - cannot be damaged or killed)
     for (const bot of this.bots) {
-      if (bot instanceof GhostAttractorBot) {
-        bot.update(dt, this.player, this.map, this.ghosts, this);
-      } else {
-        bot.update(dt, this.player, this.map);
+      try {
+        if (bot instanceof GhostAttractorBot || bot.typeName === 'Ghost Attractor') {
+          bot.update(dt, this.player, this.map, this.ghosts, this);
+        } else {
+          bot.update(dt, this.player, this.map);
+        }
+      } catch (botErr) {
+        console.error('Bot update error caught:', botErr);
+      }
+
+      // Safeguard: validate coordinates so bot cannot silently disappear
+      if (isNaN(bot.x) || isNaN(bot.y) || !isFinite(bot.x) || !isFinite(bot.y) || bot.y > this.map.height + 50) {
+        const sp = (this.map && this.map.spawnPoints && this.map.spawnPoints[bot.spawnKey]) || { x: 850, y: 593 };
+        bot.x = sp.x;
+        bot.y = sp.y;
+        bot.vx = 0;
+        bot.vy = 0;
+        bot.grounded = true;
       }
     }
 
@@ -380,7 +364,18 @@ class GameController {
 
     // 4. Update Ghosts (smooth movement, contact damage)
     for (const ghost of this.ghosts) {
-      ghost.update(dt, this.player, this.map);
+      try {
+        ghost.update(dt, this.player, this.map);
+      } catch (ghostErr) {
+        console.error('Ghost update error caught:', ghostErr);
+      }
+
+      if (isNaN(ghost.x) || isNaN(ghost.y) || !isFinite(ghost.x) || !isFinite(ghost.y) || ghost.y > this.map.height) {
+        ghost.x = (this.map && this.map.spawnPoints && this.map.spawnPoints.ghost && this.map.spawnPoints.ghost.x) || 920;
+        ghost.y = (this.map && this.map.spawnPoints && this.map.spawnPoints.ghost && this.map.spawnPoints.ghost.y) || 240;
+        ghost.vx = 0;
+        ghost.vy = 0;
+      }
     }
 
     // Re-check LOSE condition right after bot/ghost interactions
@@ -484,12 +479,16 @@ class GameController {
 
       // Ghosts
       for (const ghost of this.ghosts) {
-        ghost.draw(this.ctx);
+        if (ghost && ghost.active) {
+          try { ghost.draw(this.ctx); } catch (e) { console.error('Ghost draw error:', e); }
+        }
       }
 
       // Bots
       for (const bot of this.bots) {
-        bot.draw(this.ctx);
+        if (bot) {
+          try { bot.draw(this.ctx); } catch (e) { console.error('Bot draw error:', e); }
+        }
       }
 
       // Player

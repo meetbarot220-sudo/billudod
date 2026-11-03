@@ -17,7 +17,6 @@ class InputManager {
       dashJustPressed: false,
       attack: false,
       attackJustPressed: false,
-      pauseJustPressed: false
     };
 
     // Keyboard bindings map (Action -> array of code keys)
@@ -29,7 +28,6 @@ class InputManager {
       jump: ['Space', 'KeyW', 'ArrowUp'],
       dash: ['ShiftLeft', 'ShiftRight', 'KeyK', 'KeyJ', 'KeyF', 'KeyZ'],
       attack: ['KeyJ', 'KeyF', 'KeyZ'],
-      pause: ['Escape', 'KeyP']
     };
 
     // Raw key states
@@ -81,10 +79,6 @@ class InputManager {
       }
       this.keysDown.add(e.code);
 
-      // Handle pause directly
-      if (this.keyBindings.pause.includes(e.code)) {
-        this.actions.pauseJustPressed = true;
-      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -139,9 +133,7 @@ class InputManager {
     }
   }
 
-  triggerPause() {
-    this.actions.pauseJustPressed = true;
-  }
+
 
   // Remap helper
   remapKey(action, oldKey, newKey) {
@@ -211,10 +203,6 @@ class InputManager {
           if (!this.prevGamepadButtons[3] && !this.prevGamepadButtons[7]) attackJustPressed = true;
         }
 
-        // Start (9) = Pause
-        if (gp.buttons[9] && gp.buttons[9].pressed && !this.prevGamepadButtons[9]) {
-          this.actions.pauseJustPressed = true;
-        }
 
         // Cache button states
         this.prevGamepadButtons = gp.buttons.map(b => b.pressed);
@@ -240,7 +228,6 @@ class InputManager {
     this.actions.jumpJustPressed = false;
     this.actions.dashJustPressed = false;
     this.actions.attackJustPressed = false;
-    this.actions.pauseJustPressed = false;
     this.mouse.clicked = false;
   }
 

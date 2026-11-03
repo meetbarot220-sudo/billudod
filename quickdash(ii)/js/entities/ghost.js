@@ -14,9 +14,9 @@ class Ghost {
     this.width = 42;  // 1.3x size (scaled from 32)
     this.height = 47; // 1.3x size (scaled from 36)
 
-    this.baseSpeed = 210;
-    this.chaseSpeed = 285;
-    this.attractedSpeed = 330;
+    this.baseSpeed = 320; // -10% ghost speed (355 * 0.90)
+    this.chaseSpeed = 433; // -10% ghost speed (481 * 0.90)
+    this.attractedSpeed = 502; // -10% ghost speed (558 * 0.90)
     this.currentSpeed = this.baseSpeed;
 
     this.timer = Math.random() * 10;
@@ -60,14 +60,14 @@ class Ghost {
       if (window.soundManager) soundManager.playGhostSound();
     }
 
-    if (this.isAttracted || dist < 300) {
+    if (this.isAttracted || dist < 507) { // +30% detection radius (390 * 1.30)
       // Homing steering towards player with relentless pressure
       this.currentSpeed = this.isAttracted ? this.attractedSpeed : this.chaseSpeed;
       if (dist > 1) {
         const steerX = (dx / dist) * this.currentSpeed;
         const steerY = (dy / dist) * this.currentSpeed;
-        this.vx += (steerX - this.vx) * 0.11;
-        this.vy += (steerY - this.vy) * 0.11;
+        this.vx += (steerX - this.vx) * 0.186; // +30% steering agility (0.143 * 1.30);
+        this.vy += (steerY - this.vy) * 0.186; // +30% steering agility (0.143 * 1.30);
       }
     } else {
       // Gentle floating patrol with sinusoidal wave
@@ -83,7 +83,13 @@ class Ghost {
     // Seamless continuous horizontal wraparound
     if (this.x >= map.width) this.x -= map.width;
     else if (this.x < 0) this.x += map.width;
-    if (this.y > map.height) this.y = 45;
+    if (this.y > map.height || isNaN(this.x) || isNaN(this.y) || !isFinite(this.x) || !isFinite(this.y)) {
+      const sp = (map && map.spawnPoints && map.spawnPoints.ghost) || { x: 920, y: 240 };
+      this.x = sp.x;
+      this.y = sp.y;
+      this.vx = 0;
+      this.vy = 0;
+    }
     if (this.y < 35) this.y = 35;
 
     // Vertical boundary clamping (Ceiling & Ground)

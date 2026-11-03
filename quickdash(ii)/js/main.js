@@ -108,35 +108,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, { passive: false });
 
-  // HUD & Modal Buttons
-  const pauseBtn = document.getElementById('btn-pause-hud');
-  const resumeBtn = document.getElementById('btn-resume');
-  const restartPauseBtn = document.getElementById('btn-restart-pause');
 // Result screen has no buttons (clean ending screen)
-
-  if (pauseBtn) {
-    pauseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      game.pauseGame();
-    });
-  }
-
-  if (resumeBtn) {
-    resumeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      game.resumeGame();
-      updateDeviceView();
-    });
-  }
-
-  if (restartPauseBtn) {
-    restartPauseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      soundManager.playClick();
-      game.startRound();
-      updateDeviceView();
-    });
-  }
 
 
 
